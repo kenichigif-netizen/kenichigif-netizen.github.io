@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1976d2" />
+  <title>釣れた魚メモ</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <!-- ログイン -->
+    <section id="loginPanel" class="panel auth-panel hidden">
+      <h1>釣れた魚メモ</h1>
+      <p class="auth-note">
+        PCとスマホで同じメールアドレス・パスワードを使ってログインしてください。
+      </p>
+
+      <label for="emailInput">メールアドレス</label>
+      <input
+        id="emailInput"
+        type="email"
+        inputmode="email"
+        autocomplete="username"
+        placeholder="メールアドレス"
+      />
+
+      <label for="passwordInput">パスワード</label>
+      <input
+        id="passwordInput"
+        type="password"
+        autocomplete="current-password"
+        placeholder="パスワード"
+      />
+
+      <button id="loginButton" class="primary-button full-button" type="button">
+        ログイン
+      </button>
+
+      <div id="loginMessage" class="message"></div>
+    </section>
+
+    <!-- メイン -->
+    <main id="mainApp" class="panel main-panel hidden">
+      <header class="app-header">
+        <div>
+          <h1>釣れた魚メモ</h1>
+          <div id="userEmail" class="user-email"></div>
+        </div>
+
+        <button id="logoutButton" class="small-button" type="button">
+          ログアウト
+        </button>
+      </header>
+
+      <button id="openAddButton" class="add-catch-button" type="button">
+        ＋ 釣果追加
+      </button>
+
+      <nav class="tab-bar" aria-label="表示切替">
+        <button id="listTabButton" class="tab-button active" type="button">
+          <span class="tab-button-label">一覧</span>
+        </button>
+        <button id="mapTabButton" class="tab-button" type="button">
+          <span class="tab-button-label">マップ</span>
+        </button>
+      </nav>
+
+      <!-- 一覧タブ -->
+      <section id="listView" class="tab-view">
+        <div class="list-tools">
+          <input
+            id="searchInput"
+            class="search-input"
+            type="search"
+            placeholder="魚種・場所を検索"
+            autocomplete="off"
+          />
+
+          <div class="list-meta-row">
+            <span id="recordCount" class="record-count">0件</span>
+            <button id="refreshButton" class="refresh-button" type="button">
+              更新
+            </button>
+          </div>
+        </div>
+
+        <div id="appMessage" class="message"></div>
+
+        <div id="fishGrid" class="fish-grid"></div>
+        <p id="emptyMessage" class="empty hidden">まだ記録がありません</p>
+        <p id="noSearchResult" class="empty hidden">該当する記録がありません</p>
+      </section>
+
+      <!-- マップタブ -->
+      <section id="mapView" class="tab-view hidden">
+        <p id="catchMapMessage" class="map-section-message">
+          場所を登録した釣果が地図に表示されます。
+        </p>
+        <div id="catchMap" class="map-box catch-map hidden"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 釣果追加モーダル -->
+  <div id="addModal" class="modal modal-light" aria-hidden="true">
+    <div class="modal-sheet add-sheet">
+      <div class="modal-header">
+        <h2>釣果追加</h2>
+        <button id="closeAddButton" class="icon-button" type="button" aria-label="閉じる">
+          ×
+        </button>
+      </div>
+
+      <label for="fishInput">魚種</label>
+      <input
+        id="fishInput"
+        type="text"
+        autocomplete="off"
+      />
+
+      <label for="caughtAtInput">
+        釣った日時
+        <span class="optional-label">任意</span>
+      </label>
+      <input
+        id="caughtAtInput"
+        type="datetime-local"
+      />
+      <div class="date-note">分からない場合は空欄のままで保存できます。</div>
+
+      <label for="locationInput">場所</label>
+      <input
+        id="locationInput"
+        type="text"
+        autocomplete="off"
+      />
+
+      <button id="locationCheckButton" class="secondary-button full-button" type="button">
+        場所を地図で確認
+      </button>
+
+      <div id="locationMessage" class="message"></div>
+
+      <section id="locationMapSection" class="location-map-section hidden">
+        <p class="map-help">
+          自動でピンを立てました。ずれていたら、ピンをドラッグするか地図をタップしてください。
+        </p>
+        <div id="locationMap" class="map-box location-map"></div>
+      </section>
+
+      <label for="photoInput">写真</label>
+      <input id="photoInput" type="file" accept="image/*" />
+      <div class="photo-note">写真なしでも保存できます。</div>
+
+      <div id="preview" class="preview">
+        <img id="previewImage" alt="選択した写真のプレビュー" />
+      </div>
+
+      <button id="saveButton" class="primary-button full-button" type="button">
+        保存する
+      </button>
+
+      <div id="addMessage" class="message"></div>
+    </div>
+  </div>
+
+  <!-- 釣果詳細モーダル -->
+  <div id="detailModal" class="modal modal-light" aria-hidden="true">
+    <div class="modal-sheet detail-sheet">
+      <div class="modal-header">
+        <h2>釣果詳細</h2>
+        <button id="closeDetailButton" class="icon-button" type="button" aria-label="閉じる">
+          ×
+        </button>
+      </div>
+
+      <button id="detailPhotoButton" class="detail-photo-button hidden" type="button">
+        <img id="detailPhoto" class="detail-photo" alt="魚の写真" />
+        <span>写真をタップすると拡大</span>
+      </button>
+
+      <div id="detailNoPhoto" class="detail-no-photo hidden">写真なし</div>
+
+      <div id="detailFishName" class="detail-fish-name"></div>
+      <div id="detailLocation" class="detail-location"></div>
+      <div class="detail-date-row">
+        <div id="detailDate" class="detail-date"></div>
+        <span
+          id="detailTideBadge"
+          class="tide-badge"
+          title="月の満ち欠けを基準にした一般的な潮回りの目安"
+        ></span>
+      </div>
+
+      <button
+        id="detailFishInfoToggleButton"
+        class="detail-fish-info-toggle"
+        type="button"
+        aria-expanded="false"
+      >
+        魚種情報を見る
+      </button>
+
+      <section id="detailFishInfoPanel" class="detail-fish-info-panel hidden">
+        <div class="detail-fish-info-header">
+          <div>
+            <div class="detail-fish-info-label">Wikipedia 魚種情報</div>
+            <div id="detailFishInfoTitle" class="detail-fish-info-title"></div>
+          </div>
+
+          <a
+            id="detailFishInfoSourceLink"
+            class="detail-fish-info-source"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Wikipedia
+          </a>
+        </div>
+
+        <div id="detailFishInfoLoading" class="detail-fish-info-loading hidden">
+          魚種情報を調べています…
+        </div>
+
+        <div id="detailFishInfoContent" class="detail-fish-info-content hidden">
+          <img
+            id="detailFishInfoImage"
+            class="detail-fish-info-image hidden"
+            alt=""
+          />
+
+          <div class="detail-fish-info-section">
+            <h3>特徴</h3>
+            <p id="detailFishInfoSummary"></p>
+          </div>
+
+          <div class="detail-fish-info-section">
+            <h3>味・食用</h3>
+            <p id="detailFishInfoTaste"></p>
+          </div>
+        </div>
+
+        <div id="detailFishInfoError" class="detail-fish-info-error hidden"></div>
+      </section>
+
+      <div id="detailMap" class="map-box detail-map hidden"></div>
+
+      <div class="detail-actions">
+        <button id="detailDownloadButton" class="primary-button" type="button">
+          ダウンロード
+        </button>
+        <button id="detailDeleteButton" class="danger-button" type="button">
+          削除
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 写真拡大モーダル -->
+  <div id="imageModal" class="modal modal-dark" aria-hidden="true">
+    <div class="image-viewer">
+      <img id="modalImage" alt="拡大写真" />
+
+      <div class="image-viewer-actions">
+        <button id="closeImageButton" class="close-button" type="button">
+          閉じる
+        </button>
+        <button id="imageDownloadButton" class="download-button" type="button">
+          ダウンロード
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./script.js"></script>
+</body>
+</html>
