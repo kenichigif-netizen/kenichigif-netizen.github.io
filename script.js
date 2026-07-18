@@ -33,15 +33,6 @@ const REFERENCE_NEW_MOON_JD = 2451550.25972;
 
 const REMEMBERED_EMAIL_KEY = "fishMemoRememberedEmail";
 
-const INATURALIST_TAXA_SUGGEST_URL =
-  "https://api.inaturalist.org/v2/taxa/suggest";
-
-/*
- * iNaturalist上の Actinopterygii（条鰭類）ID。
- * 釣果メモ用なので、判定候補を魚類中心に絞ります。
- */
-const INATURALIST_RAY_FINNED_FISH_TAXON_ID = 47178;
-
 const supabaseClient = createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
@@ -92,9 +83,6 @@ const locationMapSection = document.getElementById(
 );
 const locationMapElement = document.getElementById("locationMap");
 const photoInput = document.getElementById("photoInput");
-const photoIdentifyButton = document.getElementById("photoIdentifyButton");
-const fishIdResultBox = document.getElementById("fishIdResultBox");
-const fishIdResultList = document.getElementById("fishIdResultList");
 const preview = document.getElementById("preview");
 const previewImage = document.getElementById("previewImage");
 const saveButton = document.getElementById("saveButton");
@@ -168,7 +156,6 @@ let detailFishInfoLoadedFor = "";
 let selectedImageBlob = null;
 let previewObjectUrl = "";
 let imageProcessing = false;
-let fishIdentificationRunning = false;
 
 let imageModalPath = "";
 let imageModalFishName = "";
@@ -813,8 +800,6 @@ function resetAddForm() {
 
   selectedImageBlob = null;
   imageProcessing = false;
-  fishIdentificationRunning = false;
-  clearFishIdSuggestions();
 
   revokePreviewUrl();
   clearLocationSelection();
@@ -902,8 +887,6 @@ async function handlePhotoChange() {
   const file = photoInput.files?.[0];
 
   selectedImageBlob = null;
-  clearFishIdSuggestions();
-  photoIdentifyButton.classList.add("hidden");
   revokePreviewUrl();
   previewImage.removeAttribute("src");
   preview.style.display = "none";
@@ -922,9 +905,7 @@ async function handlePhotoChange() {
     previewObjectUrl = URL.createObjectURL(selectedImageBlob);
     previewImage.src = previewObjectUrl;
     preview.style.display = "block";
-    photoIdentifyButton.classList.remove("hidden");
-    photoIdentifyButton.disabled = false;
-    setMessage(addMessage, "写真を追加できます。魚種が分からない場合は写真判定できます。", "success");
+    setMessage(addMessage, "写真を追加できます。", "success");
   } catch (error) {
     console.error(error);
     photoInput.value = "";
@@ -1244,271 +1225,6 @@ async function checkLocationOnMap() {
     );
   } finally {
     locationCheckButton.disabled = false;
-  }
-}
-
-function clearFishIdSuggestions() {
-  fishIdResultList.innerHTML = "";
-  fishIdResultBox.classList.add("hidden");
-}
-
-function getObservedOnForIdentification() {
-  if (!caughtAtInput.value) {
-    return "";
-  }
-
-  const date = new Date(caughtAtInput.value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const pad = (number) => String(number).padStart(2, "0");
-
-  return [
-    date.getFullYear(),
-    "-",
-    pad(date.getMonth() + 1),
-    "-",
-    pad(date.getDate())
-  ].join("");
-}
-
-function getTaxonDisplayName(taxon) {
-  if (!taxon) {
-    return "";
-  }
-
-  return (
-    taxon.preferred_common_name ||
-    taxon.english_common_name ||
-    taxon.matched_term ||
-    taxon.name ||
-    ""
-  ).trim();
-}
-
-function getTaxonScientificName(taxon) {
-  return (taxon?.name || "").trim();
-}
-
-function getSuggestionScore(suggestion) {
-  const sourceDetails = suggestion?.source_details || {};
-  const value =
-    sourceDetails.combined_score ??
-    sourceDetails.vision_score ??
-    suggestion?.score ??
-    null;
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-
-  /*
-   * iNaturalist v2のsuggest結果ではscoreが0〜100で返る場合がある。
-   * 0〜1で返る互換ケースにも耐える。
-   */
-  return number <= 1 ? number * 100 : number;
-}
-
-function renderFishIdentificationSuggestions(suggestions) {
-  fishIdResultList.innerHTML = "";
-
-  suggestions.forEach((suggestion) => {
-    const taxon = suggestion.taxon;
-    const displayName = getTaxonDisplayName(taxon);
-    const scientificName = getTaxonScientificName(taxon);
-    const score = getSuggestionScore(suggestion);
-
-    if (!displayName) {
-      return;
-    }
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "fish-id-choice";
-
-    const textBox = document.createElement("div");
-
-    const name = document.createElement("div");
-    name.className = "fish-id-choice-name";
-    name.textContent = displayName;
-
-    const sub = document.createElement("div");
-    sub.className = "fish-id-choice-sub";
-    sub.textContent = scientificName && scientificName !== displayName
-      ? scientificName
-      : taxon?.rank || "iNaturalist候補";
-
-    const scoreBox = document.createElement("div");
-    scoreBox.className = "fish-id-choice-score";
-    scoreBox.textContent = score === null
-      ? "候補"
-      : `${Math.round(score)}%`;
-
-    textBox.appendChild(name);
-    textBox.appendChild(sub);
-    button.appendChild(textBox);
-    button.appendChild(scoreBox);
-
-    button.addEventListener("click", () => {
-      fishInput.value = displayName;
-      setMessage(
-        addMessage,
-        `魚種欄に「${displayName}」を入れました。必要なら手で修正してください。`,
-        "success"
-      );
-      fishInput.focus();
-    });
-
-    fishIdResultList.appendChild(button);
-  });
-
-  fishIdResultBox.classList.toggle(
-    "hidden",
-    fishIdResultList.childElementCount === 0
-  );
-}
-
-async function uploadTemporaryIdentificationImage() {
-  const path = `${currentUser.id}/_identify/${makeRecordId()}.jpg`;
-
-  const { error: uploadError } = await supabaseClient.storage
-    .from("fish-photos")
-    .upload(path, selectedImageBlob, {
-      contentType: "image/jpeg",
-      upsert: false
-    });
-
-  if (uploadError) {
-    throw uploadError;
-  }
-
-  const { data, error: signedUrlError } = await supabaseClient.storage
-    .from("fish-photos")
-    .createSignedUrl(path, 10 * 60);
-
-  if (signedUrlError) {
-    await supabaseClient.storage.from("fish-photos").remove([path]);
-    throw signedUrlError;
-  }
-
-  return {
-    path,
-    signedUrl: data.signedUrl
-  };
-}
-
-async function identifyFishFromPhoto() {
-  if (!currentUser) {
-    setMessage(
-      addMessage,
-      "ログイン状態を確認できません。ログインし直してください。",
-      "error"
-    );
-    return;
-  }
-
-  if (!selectedImageBlob) {
-    setMessage(addMessage, "先に魚の写真を選んでください。", "error");
-    return;
-  }
-
-  if (imageProcessing || fishIdentificationRunning) {
-    setMessage(addMessage, "写真の処理が終わるまでお待ちください。", "info");
-    return;
-  }
-
-  fishIdentificationRunning = true;
-  photoIdentifyButton.disabled = true;
-  clearFishIdSuggestions();
-  setMessage(addMessage, "写真から魚種を判定中です…", "info");
-
-  let temporaryImage = null;
-
-  try {
-    temporaryImage = await uploadTemporaryIdentificationImage();
-
-    const params = new URLSearchParams({
-      source: "visual",
-      image_url: temporaryImage.signedUrl,
-      taxon_id: String(INATURALIST_RAY_FINNED_FISH_TAXON_ID),
-      limit: "5",
-      locale: "ja",
-      fields: "all"
-    });
-
-    const observedOn = getObservedOnForIdentification();
-    const lat = selectedLocation?.lat;
-    const lng = selectedLocation?.lng;
-
-    if (observedOn) {
-      params.set("observed_on", observedOn);
-    }
-
-    if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
-      params.set("lat", String(lat));
-      params.set("lng", String(lng));
-    }
-
-    const response = await fetch(
-      `${INATURALIST_TAXA_SUGGEST_URL}?${params.toString()}`
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `魚種判定サービスからエラーが返されました（${response.status}）`
-      );
-    }
-
-    const data = await response.json();
-    const suggestions = Array.isArray(data?.results)
-      ? data.results
-      : [];
-
-    if (suggestions.length === 0) {
-      setMessage(
-        addMessage,
-        "魚種候補が見つかりませんでした。魚が大きく写った写真で再試行してください。",
-        "error"
-      );
-      return;
-    }
-
-    renderFishIdentificationSuggestions(suggestions.slice(0, 5));
-
-    if (fishIdResultList.childElementCount === 0) {
-      setMessage(
-        addMessage,
-        "魚種候補を表示できませんでした。魚種名は手入力してください。",
-        "error"
-      );
-      return;
-    }
-
-    setMessage(
-      addMessage,
-      "魚種候補を表示しました。合っていそうな候補を押してください。",
-      "success"
-    );
-  } catch (error) {
-    console.error(error);
-    setMessage(
-      addMessage,
-      `魚種判定できませんでした：${error?.message || "不明なエラー"}`,
-      "error"
-    );
-  } finally {
-    if (temporaryImage?.path) {
-      await supabaseClient.storage
-        .from("fish-photos")
-        .remove([temporaryImage.path]);
-    }
-
-    fishIdentificationRunning = false;
-    photoIdentifyButton.disabled = false;
   }
 }
 
@@ -2019,7 +1735,7 @@ function openRecordDetail(record) {
     detailPhoto.alt = record.fish_name;
     detailPhotoButton.classList.remove("hidden");
     detailNoPhoto.classList.add("hidden");
-    detailDownloadButton.classList.add("hidden");
+    detailDownloadButton.classList.remove("hidden");
   } else {
     detailPhoto.removeAttribute("src");
     detailPhotoButton.classList.add("hidden");
@@ -2732,7 +2448,6 @@ locationCheckButton.addEventListener(
   checkLocationOnMap
 );
 saveButton.addEventListener("click", saveFish);
-photoIdentifyButton.addEventListener("click", identifyFishFromPhoto);
 photoInput.addEventListener("change", handlePhotoChange);
 
 locationInput.addEventListener("input", () => {
