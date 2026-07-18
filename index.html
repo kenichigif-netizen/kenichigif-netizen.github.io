@@ -16,6 +16,7 @@
 </head>
 
 <body>
+  <!-- fish-memo photo-id button-always 2026-07-18 -->
   <div class="app-shell">
     <!-- ログイン -->
     <section id="loginPanel" class="panel auth-panel hidden">
@@ -169,7 +170,19 @@
 
       <label for="photoInput">写真</label>
       <input id="photoInput" type="file" accept="image/*" />
-      <div class="photo-note">写真なしでも保存できます。</div>
+      <div class="photo-note">写真なしでも保存できます。魚種が分からない場合は、写真を選んで判定ボタンを押してください。</div>
+
+      <button id="photoIdentifyButton" class="secondary-button full-button" type="button">
+        写真から魚種判定
+      </button>
+
+      <div id="fishIdResultBox" class="fish-id-result-box hidden">
+        <div class="fish-id-result-title">魚種候補</div>
+        <div id="fishIdResultList" class="fish-id-result-list"></div>
+        <div class="fish-id-result-note">
+          無料のiNaturalist判定です。似た魚は間違えることがあるので、候補として確認してください。
+        </div>
+      </div>
 
       <div id="preview" class="preview">
         <img id="previewImage" alt="選択した写真のプレビュー" />
