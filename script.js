@@ -19,6 +19,10 @@ const NOMINATIM_MIN_INTERVAL_MS = 1100;
 const GEOCODE_CACHE_KEY = "fishMemoGeocodeCacheV1";
 const GEOCODE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+const MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine";
+const TIDE_TIMES_CACHE_KEY = "fishMemoTideTimesCacheV1";
+const TIDE_TIMES_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 /*
  * 潮回りは、海上保安庁が紹介する旧暦日ベースの一般的な区分を使います。
  * 月齢は平均朔望月と既知の新月基準日から算出し、その日の正午時点で判定します。
@@ -26,6 +30,8 @@ const GEOCODE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
  */
 const SYNODIC_MONTH_DAYS = 29.530588853;
 const REFERENCE_NEW_MOON_JD = 2451550.25972;
+
+const REMEMBERED_EMAIL_KEY = "fishMemoRememberedEmail";
 
 const supabaseClient = createClient(
   SUPABASE_URL,
@@ -35,6 +41,10 @@ const supabaseClient = createClient(
 /* Login */
 const loginPanel = document.getElementById("loginPanel");
 const mainApp = document.getElementById("mainApp");
+const savedAccountBox = document.getElementById("savedAccountBox");
+const savedAccountEmail = document.getElementById("savedAccountEmail");
+const changeAccountButton = document.getElementById("changeAccountButton");
+const emailLoginBox = document.getElementById("emailLoginBox");
 const emailInput = document.getElementById("emailInput");
 const passwordInput = document.getElementById("passwordInput");
 const loginButton = document.getElementById("loginButton");
@@ -88,6 +98,7 @@ const detailFishName = document.getElementById("detailFishName");
 const detailLocation = document.getElementById("detailLocation");
 const detailDate = document.getElementById("detailDate");
 const detailTideBadge = document.getElementById("detailTideBadge");
+const detailTideTimes = document.getElementById("detailTideTimes");
 const detailFishInfoToggleButton = document.getElementById(
   "detailFishInfoToggleButton"
 );
@@ -542,9 +553,48 @@ async function toggleDetailFishInfo() {
   }
 }
 
+function getRememberedEmail() {
+  return localStorage.getItem(REMEMBERED_EMAIL_KEY) || "";
+}
+
+function setRememberedEmail(email) {
+  localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+}
+
+function clearRememberedEmail() {
+  localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+}
+
+function updateLoginFormMode() {
+  const rememberedEmail = getRememberedEmail();
+
+  if (rememberedEmail) {
+    savedAccountEmail.textContent = rememberedEmail;
+    savedAccountBox.classList.remove("hidden");
+    emailLoginBox.classList.add("hidden");
+    emailInput.value = rememberedEmail;
+    loginButton.textContent = "パスワードでログイン";
+  } else {
+    savedAccountEmail.textContent = "";
+    savedAccountBox.classList.add("hidden");
+    emailLoginBox.classList.remove("hidden");
+    emailInput.value = "";
+    loginButton.textContent = "ログイン";
+  }
+
+  passwordInput.value = "";
+}
+
+function switchLoginAccount() {
+  clearRememberedEmail();
+  updateLoginFormMode();
+  emailInput.focus();
+}
+
 function setLoginMode() {
   currentUser = null;
   allRecords = [];
+  updateLoginFormMode();
   mainApp.classList.add("hidden");
   loginPanel.classList.remove("hidden");
   userEmail.textContent = "";
@@ -558,6 +608,11 @@ function setLoginMode() {
 
 async function setAppMode(user) {
   currentUser = user;
+
+  if (user.email) {
+    setRememberedEmail(user.email);
+  }
+
   userEmail.textContent = user.email || "";
   loginPanel.classList.add("hidden");
   mainApp.classList.remove("hidden");
@@ -598,13 +653,16 @@ async function initializeApp() {
 }
 
 async function login() {
-  const email = emailInput.value.trim();
+  const rememberedEmail = getRememberedEmail();
+  const email = rememberedEmail || emailInput.value.trim();
   const password = passwordInput.value;
 
   if (!email || !password) {
     setMessage(
       loginMessage,
-      "メールアドレスとパスワードを入力してください。",
+      rememberedEmail
+        ? "パスワードを入力してください。"
+        : "メールアドレスとパスワードを入力してください。",
       "error"
     );
     return;
@@ -624,6 +682,7 @@ async function login() {
       throw error;
     }
 
+    setRememberedEmail(email);
     await setAppMode(data.user);
   } catch (error) {
     console.error(error);
@@ -1338,6 +1397,8 @@ async function loadRecords(showLoading = true) {
     if (showLoading) {
       clearMessage(appMessage);
     }
+
+    enrichRecordsWithTideTimes(allRecords);
   } catch (error) {
     console.error(error);
     setMessage(
@@ -1460,6 +1521,15 @@ function createFishCard(record) {
     tide.textContent = getTideCycleName(recordDate);
     tide.title = "月の満ち欠けを基準にした一般的な潮回りの目安";
     dateRow.appendChild(tide);
+
+    if (record.tideTimes) {
+      const tideTimes = document.createElement("span");
+      tideTimes.className = "fish-card-tide-times";
+      tideTimes.textContent = formatCompactTideTimes(record.tideTimes);
+      tideTimes.title =
+        "ピン位置付近の海面高度モデルから推定した満潮・干潮時刻";
+      dateRow.appendChild(tideTimes);
+    }
   }
 
   body.appendChild(name);
@@ -1591,6 +1661,15 @@ function createMapInfoContent(record) {
     tide.textContent = getTideCycleName(recordDate);
     tide.title = "月の満ち欠けを基準にした一般的な潮回りの目安";
     container.appendChild(tide);
+
+    if (record.tideTimes) {
+      const tideTimes = document.createElement("div");
+      tideTimes.className = "map-info-tide-times";
+      tideTimes.textContent = formatFullTideTimes(record.tideTimes);
+      tideTimes.title =
+        "ピン位置付近の海面高度モデルから推定した満潮・干潮時刻";
+      container.appendChild(tideTimes);
+    }
   }
 
   const detailButton = document.createElement("button");
@@ -1635,10 +1714,20 @@ function openRecordDetail(record) {
     detailDate.textContent = formatDate(recordDate);
     detailTideBadge.textContent = getTideCycleName(recordDate);
     detailTideBadge.classList.remove("hidden");
+
+    if (record.tideTimes) {
+      detailTideTimes.textContent = formatFullTideTimes(record.tideTimes);
+      detailTideTimes.classList.remove("hidden");
+    } else {
+      detailTideTimes.textContent = "";
+      detailTideTimes.classList.add("hidden");
+    }
   } else {
     detailDate.textContent = "日付不明";
     detailTideBadge.textContent = "";
     detailTideBadge.classList.add("hidden");
+    detailTideTimes.textContent = "";
+    detailTideTimes.classList.add("hidden");
   }
 
   if (record.signedUrl) {
@@ -1844,6 +1933,369 @@ async function downloadImage(imagePath, fishName, button) {
   }
 }
 
+function readTideTimesCache() {
+  try {
+    const raw = localStorage.getItem(TIDE_TIMES_CACHE_KEY);
+
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return parsed && typeof parsed === "object"
+      ? parsed
+      : {};
+  } catch (error) {
+    console.warn("潮汐時刻キャッシュを読めませんでした。", error);
+    return {};
+  }
+}
+
+function writeTideTimesCache(cache) {
+  try {
+    localStorage.setItem(
+      TIDE_TIMES_CACHE_KEY,
+      JSON.stringify(cache)
+    );
+  } catch (error) {
+    console.warn("潮汐時刻キャッシュを保存できませんでした。", error);
+  }
+}
+
+function getRecordLocalDateKey(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const pad = (number) => String(number).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    "-",
+    pad(date.getMonth() + 1),
+    "-",
+    pad(date.getDate())
+  ].join("");
+}
+
+function makeTideTimesCacheKey(latitude, longitude, dateKey) {
+  /*
+   * Open-Meteoの潮汐・海流モデルは約8 km格子なので、
+   * キャッシュキーは小数第2位までにまとめます。
+   */
+  return [
+    Number(latitude).toFixed(2),
+    Number(longitude).toFixed(2),
+    dateKey
+  ].join("|");
+}
+
+function getCachedTideTimes(latitude, longitude, dateKey) {
+  const key = makeTideTimesCacheKey(
+    latitude,
+    longitude,
+    dateKey
+  );
+  const cache = readTideTimesCache();
+  const item = cache[key];
+
+  if (!item) {
+    return null;
+  }
+
+  if (
+    !Number.isFinite(item.savedAt) ||
+    Date.now() - item.savedAt > TIDE_TIMES_CACHE_MAX_AGE_MS
+  ) {
+    delete cache[key];
+    writeTideTimesCache(cache);
+    return null;
+  }
+
+  return item.data || null;
+}
+
+function cacheTideTimes(latitude, longitude, dateKey, data) {
+  const key = makeTideTimesCacheKey(
+    latitude,
+    longitude,
+    dateKey
+  );
+  const cache = readTideTimesCache();
+
+  cache[key] = {
+    savedAt: Date.now(),
+    data
+  };
+
+  writeTideTimesCache(cache);
+}
+
+function parseLocalApiTime(value) {
+  const match = String(value || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5])
+  };
+}
+
+function formatApiMinutes(baseTime, offsetHours = 0) {
+  const parsed = parseLocalApiTime(baseTime);
+
+  if (!parsed) {
+    return "";
+  }
+
+  const totalMinutes =
+    parsed.hour * 60 +
+    parsed.minute +
+    Math.round(offsetHours * 60);
+
+  const normalized =
+    ((totalMinutes % 1440) + 1440) % 1440;
+
+  const hour = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+
+  return `${String(hour).padStart(2, "0")}:${String(
+    minute
+  ).padStart(2, "0")}`;
+}
+
+function estimateExtremumOffset(previous, current, next) {
+  const denominator =
+    previous - 2 * current + next;
+
+  if (
+    !Number.isFinite(denominator) ||
+    Math.abs(denominator) < 1e-9
+  ) {
+    return 0;
+  }
+
+  const offset =
+    0.5 * (previous - next) / denominator;
+
+  return Math.max(-0.5, Math.min(0.5, offset));
+}
+
+function extractHighLowTideTimes(times, heights) {
+  const highs = [];
+  const lows = [];
+
+  for (let index = 1; index < heights.length - 1; index += 1) {
+    const previous = Number(heights[index - 1]);
+    const current = Number(heights[index]);
+    const next = Number(heights[index + 1]);
+
+    if (
+      !Number.isFinite(previous) ||
+      !Number.isFinite(current) ||
+      !Number.isFinite(next)
+    ) {
+      continue;
+    }
+
+    if (current > previous && current >= next) {
+      highs.push({
+        time: formatApiMinutes(
+          times[index],
+          estimateExtremumOffset(previous, current, next)
+        ),
+        height: current
+      });
+    }
+
+    if (current < previous && current <= next) {
+      lows.push({
+        time: formatApiMinutes(
+          times[index],
+          estimateExtremumOffset(previous, current, next)
+        ),
+        height: current
+      });
+    }
+  }
+
+  return {
+    highs: highs.slice(0, 2),
+    lows: lows.slice(0, 2)
+  };
+}
+
+async function fetchTideTimes(latitude, longitude, dateKey) {
+  const cached = getCachedTideTimes(
+    latitude,
+    longitude,
+    dateKey
+  );
+
+  if (cached) {
+    return cached;
+  }
+
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    hourly: "sea_level_height_msl",
+    timezone: "auto",
+    cell_selection: "sea",
+    start_date: dateKey,
+    end_date: dateKey
+  });
+
+  const response = await fetch(
+    `${MARINE_API_URL}?${params.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `潮汐情報サービスからエラーが返されました（${response.status}）`
+    );
+  }
+
+  const data = await response.json();
+  const times = data?.hourly?.time;
+  const heights = data?.hourly?.sea_level_height_msl;
+
+  if (
+    !Array.isArray(times) ||
+    !Array.isArray(heights) ||
+    times.length < 3 ||
+    times.length !== heights.length
+  ) {
+    throw new Error("潮汐時刻を計算できるデータがありません。");
+  }
+
+  const result = extractHighLowTideTimes(times, heights);
+
+  if (
+    result.highs.length === 0 &&
+    result.lows.length === 0
+  ) {
+    throw new Error("満潮・干潮の時刻を推定できませんでした。");
+  }
+
+  cacheTideTimes(
+    latitude,
+    longitude,
+    dateKey,
+    result
+  );
+
+  return result;
+}
+
+async function enrichRecordWithTideTimes(record) {
+  const latitude = Number(record.latitude);
+  const longitude = Number(record.longitude);
+  const recordDate = getRecordDateValue(record);
+  const dateKey = getRecordLocalDateKey(recordDate);
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    !dateKey
+  ) {
+    return false;
+  }
+
+  try {
+    const tideTimes = await fetchTideTimes(
+      latitude,
+      longitude,
+      dateKey
+    );
+
+    record.tideTimes = tideTimes;
+    return true;
+  } catch (error) {
+    console.warn(
+      `潮汐時刻を取得できませんでした: ${record.fish_name}`,
+      error
+    );
+    return false;
+  }
+}
+
+async function enrichRecordsWithTideTimes(records) {
+  const targets = records.filter((record) => {
+    return (
+      !record.tideTimes &&
+      getRecordDateValue(record) &&
+      Number.isFinite(Number(record.latitude)) &&
+      Number.isFinite(Number(record.longitude))
+    );
+  });
+
+  if (targets.length === 0) {
+    return;
+  }
+
+  const results = await Promise.all(
+    targets.map((record) =>
+      enrichRecordWithTideTimes(record)
+    )
+  );
+
+  if (!results.some(Boolean)) {
+    return;
+  }
+
+  renderFilteredRecords();
+  renderCatchMap(allRecords);
+
+  if (currentDetailRecord) {
+    const refreshedRecord = allRecords.find(
+      (record) => record.id === currentDetailRecord.id
+    );
+
+    if (refreshedRecord) {
+      openRecordDetail(refreshedRecord);
+    }
+  }
+}
+
+function getTideTimeListText(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "－";
+  }
+
+  return items
+    .map((item) => item.time)
+    .filter(Boolean)
+    .join("/");
+}
+
+function formatCompactTideTimes(tideTimes) {
+  return `満 ${getTideTimeListText(
+    tideTimes.highs
+  )}　干 ${getTideTimeListText(tideTimes.lows)}`;
+}
+
+function formatFullTideTimes(tideTimes) {
+  return `満潮 ${getTideTimeListText(
+    tideTimes.highs
+  )}　干潮 ${getTideTimeListText(tideTimes.lows)}`;
+}
+
 function getRecordDateValue(record) {
   return record?.caught_at || null;
 }
@@ -1979,6 +2431,7 @@ function formatShortDate(value) {
 
 /* Events */
 loginButton.addEventListener("click", login);
+changeAccountButton.addEventListener("click", switchLoginAccount);
 logoutButton.addEventListener("click", logout);
 
 openAddButton.addEventListener("click", openAddModal);

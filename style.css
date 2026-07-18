@@ -896,3 +896,67 @@ input:focus {
   font-size: 12px;
   line-height: 1.5;
 }
+
+
+.fish-card-tide-times {
+  display: inline-flex;
+  min-height: 21px;
+  align-items: center;
+  color: #51616b;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.detail-tide-times {
+  display: inline-flex;
+  align-items: center;
+  color: #4f616b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.map-info-tide-times {
+  margin-top: 5px;
+  color: #51616b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+
+/* 簡単ログイン */
+.saved-account-box {
+  margin: 14px 0 12px;
+  padding: 14px;
+  border: 1px solid #d7e1e7;
+  border-radius: 14px;
+  background: #f7fafc;
+}
+
+.saved-account-label {
+  color: #6f7d86;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.saved-account-email {
+  margin-top: 4px;
+  color: #263238;
+  font-size: 16px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.text-button {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1976d2;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+}

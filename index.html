@@ -24,14 +24,24 @@
         PCとスマホで同じメールアドレス・パスワードを使ってログインしてください。
       </p>
 
-      <label for="emailInput">メールアドレス</label>
-      <input
-        id="emailInput"
-        type="email"
-        inputmode="email"
-        autocomplete="username"
-        placeholder="メールアドレス"
-      />
+      <div id="savedAccountBox" class="saved-account-box hidden">
+        <div class="saved-account-label">前回のアカウント</div>
+        <div id="savedAccountEmail" class="saved-account-email"></div>
+        <button id="changeAccountButton" class="text-button" type="button">
+          別のメールアドレスでログイン
+        </button>
+      </div>
+
+      <div id="emailLoginBox">
+        <label for="emailInput">メールアドレス</label>
+        <input
+          id="emailInput"
+          type="email"
+          inputmode="email"
+          autocomplete="username"
+          placeholder="メールアドレス"
+        />
+      </div>
 
       <label for="passwordInput">パスワード</label>
       <input
@@ -198,6 +208,11 @@
           id="detailTideBadge"
           class="tide-badge"
           title="月の満ち欠けを基準にした一般的な潮回りの目安"
+        ></span>
+        <span
+          id="detailTideTimes"
+          class="detail-tide-times hidden"
+          title="ピン位置付近の海面高度モデルから推定した満潮・干潮時刻"
         ></span>
       </div>
 
