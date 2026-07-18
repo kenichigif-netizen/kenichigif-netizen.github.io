@@ -1,3 +1,4 @@
+console.log("fish-memo photo-id clickfix v4");
 console.log("fish-memo photo-id button-always 2026-07-18");
 const { createClient } = window.supabase;
 
@@ -1403,6 +1404,9 @@ async function uploadTemporaryIdentificationImage() {
 }
 
 async function identifyFishFromPhoto() {
+  console.log("写真から魚種判定ボタンが押されました。");
+  setMessage(addMessage, "写真判定ボタンを押しました。処理を開始します…", "info");
+
   if (!currentUser) {
     setMessage(
       addMessage,
@@ -2715,6 +2719,8 @@ function formatShortDate(value) {
 }
 
 /* Events */
+window.identifyFishFromPhoto = identifyFishFromPhoto;
+
 loginButton.addEventListener("click", login);
 changeAccountButton.addEventListener("click", switchLoginAccount);
 logoutButton.addEventListener("click", logout);
@@ -2733,7 +2739,9 @@ locationCheckButton.addEventListener(
   checkLocationOnMap
 );
 saveButton.addEventListener("click", saveFish);
-photoIdentifyButton.addEventListener("click", identifyFishFromPhoto);
+if (photoIdentifyButton) {
+  photoIdentifyButton.addEventListener("click", identifyFishFromPhoto);
+}
 photoInput.addEventListener("change", handlePhotoChange);
 
 locationInput.addEventListener("input", () => {

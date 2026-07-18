@@ -16,6 +16,7 @@
 </head>
 
 <body>
+  <!-- fish-memo photo-id clickfix v4 -->
   <!-- fish-memo photo-id button-always 2026-07-18 -->
   <div class="app-shell">
     <!-- ログイン -->
@@ -172,7 +173,7 @@
       <input id="photoInput" type="file" accept="image/*" />
       <div class="photo-note">写真なしでも保存できます。魚種が分からない場合は、写真を選んで判定ボタンを押してください。</div>
 
-      <button id="photoIdentifyButton" class="secondary-button full-button" type="button">
+      <button id="photoIdentifyButton" class="secondary-button full-button" type="button" onclick="window.identifyFishFromPhoto && window.identifyFishFromPhoto()">
         写真から魚種判定
       </button>
 
@@ -316,6 +317,6 @@
     crossorigin=""
   ></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js"></script>
+  <script src="./script.js?v=4"></script>
 </body>
 </html>
