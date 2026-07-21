@@ -1083,3 +1083,8 @@ input:focus {
 #imageDownloadButton {
   display: none !important;
 }
+
+
+.bouz-info-badges:empty {
+  display: none;
+}
