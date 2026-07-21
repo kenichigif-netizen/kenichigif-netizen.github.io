@@ -16,8 +16,6 @@
 </head>
 
 <body>
-  <!-- fish-memo photo-id clickfix v4 -->
-  <!-- fish-memo photo-id button-always 2026-07-18 -->
   <div class="app-shell">
     <!-- ログイン -->
     <section id="loginPanel" class="panel auth-panel hidden">
@@ -137,7 +135,9 @@
         id="fishInput"
         type="text"
         autocomplete="off"
+        placeholder="分からない場合は空欄でOK"
       />
+      <div class="fish-note">魚種が分からない場合は「不明魚」として保存します。</div>
 
       <label for="caughtAtInput">
         釣った日時
@@ -171,19 +171,7 @@
 
       <label for="photoInput">写真</label>
       <input id="photoInput" type="file" accept="image/*" />
-      <div class="photo-note">写真なしでも保存できます。魚種が分からない場合は、写真を選んで判定ボタンを押してください。</div>
-
-      <button id="photoIdentifyButton" class="secondary-button full-button" type="button" onclick="window.identifyFishFromPhoto && window.identifyFishFromPhoto()">
-        写真から魚種判定
-      </button>
-
-      <div id="fishIdResultBox" class="fish-id-result-box hidden">
-        <div class="fish-id-result-title">魚種候補</div>
-        <div id="fishIdResultList" class="fish-id-result-list"></div>
-        <div class="fish-id-result-note">
-          無料のiNaturalist判定です。似た魚は間違えることがあるので、候補として確認してください。
-        </div>
-      </div>
+      <div class="photo-note">写真なしでも保存できます。</div>
 
       <div id="preview" class="preview">
         <img id="previewImage" alt="選択した写真のプレビュー" />
@@ -214,7 +202,12 @@
 
       <div id="detailNoPhoto" class="detail-no-photo hidden">写真なし</div>
 
-      <div id="detailFishName" class="detail-fish-name"></div>
+      <div class="detail-fish-name-row">
+        <div id="detailFishName" class="detail-fish-name"></div>
+        <button id="detailEditNameButton" class="small-edit-button" type="button">
+          魚種名を編集
+        </button>
+      </div>
       <div id="detailLocation" class="detail-location"></div>
       <div class="detail-date-row">
         <div id="detailDate" class="detail-date"></div>
@@ -240,54 +233,112 @@
       </button>
 
       <section id="detailFishInfoPanel" class="detail-fish-info-panel hidden">
-        <div class="detail-fish-info-header">
-          <div>
-            <div class="detail-fish-info-label">Wikipedia 魚種情報</div>
-            <div id="detailFishInfoTitle" class="detail-fish-info-title"></div>
-          </div>
-
-          <a
-            id="detailFishInfoSourceLink"
-            class="detail-fish-info-source"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+        <div class="detail-info-tabs" role="tablist" aria-label="魚種情報の情報源">
+          <button id="wikiInfoTabButton" class="detail-info-tab active" type="button">
             Wikipedia
-          </a>
+          </button>
+          <button id="bouzInfoTabButton" class="detail-info-tab" type="button">
+            市場魚貝類図鑑
+          </button>
         </div>
 
-        <div id="detailFishInfoLoading" class="detail-fish-info-loading hidden">
-          魚種情報を調べています…
-        </div>
+        <section id="wikiInfoPanel" class="detail-info-source-panel">
+          <div class="detail-fish-info-header">
+            <div>
+              <div class="detail-fish-info-label">Wikipedia 魚種情報</div>
+              <div id="detailFishInfoTitle" class="detail-fish-info-title"></div>
+            </div>
 
-        <div id="detailFishInfoContent" class="detail-fish-info-content hidden">
-          <img
-            id="detailFishInfoImage"
-            class="detail-fish-info-image hidden"
-            alt=""
-          />
-
-          <div class="detail-fish-info-section">
-            <h3>特徴</h3>
-            <p id="detailFishInfoSummary"></p>
+            <a
+              id="detailFishInfoSourceLink"
+              class="detail-fish-info-source"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Wikipedia
+            </a>
           </div>
 
-          <div class="detail-fish-info-section">
-            <h3>味・食用</h3>
-            <p id="detailFishInfoTaste"></p>
+          <div id="detailFishInfoLoading" class="detail-fish-info-loading hidden">
+            Wikipediaを調べています…
           </div>
-        </div>
 
-        <div id="detailFishInfoError" class="detail-fish-info-error hidden"></div>
+          <div id="detailFishInfoContent" class="detail-fish-info-content hidden">
+            <img
+              id="detailFishInfoImage"
+              class="detail-fish-info-image hidden"
+              alt=""
+            />
+
+            <div class="detail-fish-info-section">
+              <h3>特徴</h3>
+              <p id="detailFishInfoSummary"></p>
+            </div>
+
+            <div class="detail-fish-info-section">
+              <h3>味・食用</h3>
+              <p id="detailFishInfoTaste"></p>
+            </div>
+          </div>
+
+          <div id="detailFishInfoError" class="detail-fish-info-error hidden"></div>
+        </section>
+
+        <section id="bouzInfoPanel" class="detail-info-source-panel hidden">
+          <div class="detail-fish-info-header">
+            <div>
+              <div class="detail-fish-info-label">ぼうずコンニャク 市場魚貝類図鑑</div>
+              <div id="bouzInfoTitle" class="detail-fish-info-title"></div>
+            </div>
+
+            <a
+              id="bouzInfoSourceLink"
+              class="detail-fish-info-source"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              図鑑を開く
+            </a>
+          </div>
+
+          <div id="bouzInfoLoading" class="detail-fish-info-loading hidden">
+            市場魚貝類図鑑を調べています…
+          </div>
+
+          <div id="bouzInfoContent" class="bouz-info-content hidden">
+            <div id="bouzInfoBadges" class="bouz-info-badges"></div>
+
+            <div class="bouz-info-grid">
+              <div class="bouz-info-card">
+                <h3>味・食用</h3>
+                <p id="bouzInfoTaste"></p>
+              </div>
+              <div class="bouz-info-card">
+                <h3>栄養</h3>
+                <p id="bouzInfoNutrition"></p>
+              </div>
+              <div class="bouz-info-card">
+                <h3>危険性など</h3>
+                <p id="bouzInfoRisk"></p>
+              </div>
+              <div class="bouz-info-card">
+                <h3>食べ方・料理法</h3>
+                <p id="bouzInfoCooking"></p>
+              </div>
+            </div>
+
+            <div id="bouzInfoMeta" class="bouz-info-meta"></div>
+          </div>
+
+          <div id="bouzInfoError" class="detail-fish-info-error hidden"></div>
+        </section>
       </section>
 
       <div id="detailMap" class="map-box detail-map hidden"></div>
 
       <div class="detail-actions">
-        <button id="detailDownloadButton" class="primary-button" type="button">
-          ダウンロード
-        </button>
         <button id="detailDeleteButton" class="danger-button" type="button">
           削除
         </button>
@@ -317,6 +368,6 @@
     crossorigin=""
   ></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./script.js?v=4"></script>
+  <script src="./script.js?v=6"></script>
 </body>
 </html>
