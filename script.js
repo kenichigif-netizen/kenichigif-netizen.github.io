@@ -1,3 +1,4 @@
+console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
 console.log("fish-memo bouz v9");
 console.log("fish-memo bouz v8");
@@ -12,7 +13,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const WIKIPEDIA_API_URL = "https://ja.wikipedia.org/w/api.php";
 const WIKI_CACHE_KEY = "fishMemoWikipediaCacheV1";
-const BOUZ_CACHE_KEY = "fishMemoBouzCacheV3";
+const BOUZ_CACHE_KEY = "fishMemoBouzCacheV4";
 const BOUZ_FUNCTION_NAME = "bouz-info";
 const WIKI_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WIKI_INPUT_DELAY_MS = 700;
@@ -150,7 +151,6 @@ const bouzInfoBadges = document.getElementById("bouzInfoBadges");
 const bouzInfoTaste = document.getElementById("bouzInfoTaste");
 const bouzInfoNutrition = document.getElementById("bouzInfoNutrition");
 const bouzInfoRisk = document.getElementById("bouzInfoRisk");
-const bouzInfoCooking = document.getElementById("bouzInfoCooking");
 const bouzInfoMeta = document.getElementById("bouzInfoMeta");
 const bouzInfoError = document.getElementById("bouzInfoError");
 
@@ -507,7 +507,6 @@ function resetBouzInfo() {
   bouzInfoTaste.textContent = "";
   bouzInfoNutrition.textContent = "";
   bouzInfoRisk.textContent = "";
-  bouzInfoCooking.textContent = "";
   bouzInfoMeta.innerHTML = "";
   bouzInfoError.textContent = "";
 }
@@ -663,7 +662,6 @@ function renderBouzInfo(info) {
   setBouzText(bouzInfoTaste, tasteParts.join("\n"));
   setBouzText(bouzInfoNutrition, info.nutrition);
   setBouzText(bouzInfoRisk, info.risk, "特記なし、または情報が見つかりませんでした。");
-  setBouzText(bouzInfoCooking, info.cooking);
 
   bouzInfoMeta.innerHTML = "";
   addBouzMetaRow("分類", info.classification);
