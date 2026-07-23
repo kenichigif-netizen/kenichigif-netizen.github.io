@@ -1,4 +1,4 @@
-console.log("fish-memo bouz v12");
+console.log("fish-memo HEIC support v14");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
 console.log("fish-memo bouz v9");
@@ -14,7 +14,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const WIKIPEDIA_API_URL = "https://ja.wikipedia.org/w/api.php";
 const WIKI_CACHE_KEY = "fishMemoWikipediaCacheV1";
-const BOUZ_CACHE_KEY = "fishMemoBouzCacheV5";
+const BOUZ_CACHE_KEY = "fishMemoBouzCacheV4";
 const BOUZ_FUNCTION_NAME = "bouz-info";
 const WIKI_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WIKI_INPUT_DELAY_MS = 700;
@@ -599,7 +599,7 @@ async function fetchBouzInfo(fishName) {
   }
 
   const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/${BOUZ_FUNCTION_NAME}?name=${encodeURIComponent(fishName)}&parser=v12`,
+    `${SUPABASE_URL}/functions/v1/${BOUZ_FUNCTION_NAME}?name=${encodeURIComponent(fishName)}`,
     {
       method: "GET",
       headers: {
@@ -1146,6 +1146,77 @@ function resetAddForm() {
   saveButton.disabled = false;
 }
 
+function looksLikeHeicFile(file) {
+  const fileName = String(file?.name || "").toLowerCase();
+  const mimeType = String(file?.type || "").toLowerCase();
+
+  return (
+    fileName.endsWith(".heic") ||
+    fileName.endsWith(".heif") ||
+    mimeType === "image/heic" ||
+    mimeType === "image/heif" ||
+    mimeType === "image/heic-sequence" ||
+    mimeType === "image/heif-sequence"
+  );
+}
+
+async function convertHeicToJpegIfNeeded(file) {
+  if (!file) {
+    throw new Error("画像ファイルが選択されていません。");
+  }
+
+  const heicLibrary = window.HeicTo;
+
+  let isHeic = looksLikeHeicFile(file);
+
+  if (heicLibrary?.isHeic) {
+    try {
+      isHeic = await heicLibrary.isHeic(file);
+    } catch (error) {
+      console.warn(
+        "HEIC判定に失敗したため、拡張子とMIMEタイプで判定します。",
+        error
+      );
+    }
+  }
+
+  if (!isHeic) {
+    return file;
+  }
+
+  if (typeof heicLibrary !== "function") {
+    throw new Error(
+      "HEIC変換ライブラリを読み込めませんでした。通信状態を確認して、ページを再読み込みしてください。"
+    );
+  }
+
+  setMessage(
+    addMessage,
+    "HEIC写真をJPEGへ変換中です。少し時間がかかる場合があります…",
+    "info"
+  );
+
+  const converted = await heicLibrary({
+    blob: file,
+    type: "image/jpeg",
+    quality: 0.92
+  });
+
+  /*
+   * HEIC内に複数画像がある場合、ライブラリが配列を返すことがあります。
+   * 釣果写真では先頭の1枚を使用します。
+   */
+  const jpegBlob = Array.isArray(converted)
+    ? converted[0]
+    : converted;
+
+  if (!(jpegBlob instanceof Blob)) {
+    throw new Error("HEIC写真をJPEGへ変換できませんでした。");
+  }
+
+  return jpegBlob;
+}
+
 function resizeImageToJpeg(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1235,7 +1306,12 @@ async function handlePhotoChange() {
   setMessage(addMessage, "写真を処理中です…", "info");
 
   try {
-    selectedImageBlob = await resizeImageToJpeg(file);
+    const browserReadableImage =
+      await convertHeicToJpegIfNeeded(file);
+
+    selectedImageBlob =
+      await resizeImageToJpeg(browserReadableImage);
+
     previewObjectUrl = URL.createObjectURL(selectedImageBlob);
     previewImage.src = previewObjectUrl;
     preview.style.display = "block";
@@ -1246,7 +1322,8 @@ async function handlePhotoChange() {
     selectedImageBlob = null;
     setMessage(
       addMessage,
-      error?.message || "写真を読み込めませんでした。",
+      error?.message ||
+        "写真を読み込めませんでした。HEICの場合は通信状態を確認して、もう一度お試しください。",
       "error"
     );
   } finally {
