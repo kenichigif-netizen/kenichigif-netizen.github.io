@@ -1,3 +1,5 @@
+console.log("fish-memo bouz v9");
+console.log("fish-memo bouz v8");
 console.log("fish-memo bouz cleaned v7");
 console.log("fish-memo unknown-edit-bouz v6");
 const { createClient } = window.supabase;
@@ -9,7 +11,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const WIKIPEDIA_API_URL = "https://ja.wikipedia.org/w/api.php";
 const WIKI_CACHE_KEY = "fishMemoWikipediaCacheV1";
-const BOUZ_CACHE_KEY = "fishMemoBouzCacheV1";
+const BOUZ_CACHE_KEY = "fishMemoBouzCacheV2";
 const BOUZ_FUNCTION_NAME = "bouz-info";
 const WIKI_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WIKI_INPUT_DELAY_MS = 700;
@@ -632,13 +634,13 @@ function renderBouzBadges(info) {
 }
 
 function addBouzMetaRow(label, value) {
-  if (!value) {
-    return;
-  }
+  if (!value) return;
+  const text = String(value).trim();
+  if (!text || text.includes("から探す") || text.includes("サイト内検索")) return;
 
   const row = document.createElement("div");
   row.className = "bouz-info-meta-row";
-  row.textContent = `${label}：${value}`;
+  row.textContent = `${label}：${text}`;
   bouzInfoMeta.appendChild(row);
 }
 
