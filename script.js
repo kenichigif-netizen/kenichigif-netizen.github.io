@@ -1,3 +1,4 @@
+console.log("fish-memo bouz v12");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
 console.log("fish-memo bouz v9");
@@ -13,7 +14,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const WIKIPEDIA_API_URL = "https://ja.wikipedia.org/w/api.php";
 const WIKI_CACHE_KEY = "fishMemoWikipediaCacheV1";
-const BOUZ_CACHE_KEY = "fishMemoBouzCacheV4";
+const BOUZ_CACHE_KEY = "fishMemoBouzCacheV5";
 const BOUZ_FUNCTION_NAME = "bouz-info";
 const WIKI_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WIKI_INPUT_DELAY_MS = 700;
@@ -598,7 +599,7 @@ async function fetchBouzInfo(fishName) {
   }
 
   const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/${BOUZ_FUNCTION_NAME}?name=${encodeURIComponent(fishName)}`,
+    `${SUPABASE_URL}/functions/v1/${BOUZ_FUNCTION_NAME}?name=${encodeURIComponent(fishName)}&parser=v12`,
     {
       method: "GET",
       headers: {
