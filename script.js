@@ -1,3 +1,4 @@
+console.log("fish-memo bouz v10");
 console.log("fish-memo bouz v9");
 console.log("fish-memo bouz v8");
 console.log("fish-memo bouz cleaned v7");
@@ -11,7 +12,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 const WIKIPEDIA_API_URL = "https://ja.wikipedia.org/w/api.php";
 const WIKI_CACHE_KEY = "fishMemoWikipediaCacheV1";
-const BOUZ_CACHE_KEY = "fishMemoBouzCacheV2";
+const BOUZ_CACHE_KEY = "fishMemoBouzCacheV3";
 const BOUZ_FUNCTION_NAME = "bouz-info";
 const WIKI_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const WIKI_INPUT_DELAY_MS = 700;
@@ -655,7 +656,7 @@ function renderBouzInfo(info) {
   renderBouzBadges(info);
 
   const tasteParts = [
-    info.tasteRating ? `味の評価：${info.tasteRating}` : "",
+    info.tasteRating || "",
     info.tasteSummary || ""
   ].filter(Boolean);
 
