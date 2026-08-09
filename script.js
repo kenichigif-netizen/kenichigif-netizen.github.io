@@ -1,4 +1,5 @@
-console.log("fish-memo HEIC support v14");
+console.log("fish-memo media support v16");
+console.log("fish-memo HEIC support v15");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
 console.log("fish-memo bouz v9");
@@ -93,7 +94,12 @@ const locationMapSection = document.getElementById(
 const locationMapElement = document.getElementById("locationMap");
 const photoInput = document.getElementById("photoInput");
 const preview = document.getElementById("preview");
-const previewImage = document.getElementById("previewImage");
+const previewImage1 = document.getElementById("previewImage1");
+const previewImage2 = document.getElementById("previewImage2");
+const videoInput = document.getElementById("videoInput");
+const videoPreviewWrap = document.getElementById("videoPreviewWrap");
+const videoPreview = document.getElementById("videoPreview");
+const videoPreviewMeta = document.getElementById("videoPreviewMeta");
 const saveButton = document.getElementById("saveButton");
 const addMessage = document.getElementById("addMessage");
 
@@ -102,6 +108,11 @@ const detailModal = document.getElementById("detailModal");
 const closeDetailButton = document.getElementById("closeDetailButton");
 const detailPhotoButton = document.getElementById("detailPhotoButton");
 const detailPhoto = document.getElementById("detailPhoto");
+const detailPhotoButton2 = document.getElementById("detailPhotoButton2");
+const detailPhoto2 = document.getElementById("detailPhoto2");
+const detailVideoWrap = document.getElementById("detailVideoWrap");
+const detailVideo = document.getElementById("detailVideo");
+const detailVideoMeta = document.getElementById("detailVideoMeta");
 const detailNoPhoto = document.getElementById("detailNoPhoto");
 const detailFishName = document.getElementById("detailFishName");
 const detailEditNameButton = document.getElementById("detailEditNameButton");
@@ -182,9 +193,14 @@ let bouzInfoRequestId = 0;
 let bouzInfoLoadedFor = "";
 let currentFishInfoSource = "wiki";
 
-let selectedImageBlob = null;
-let previewObjectUrl = "";
+let selectedImageBlobs = [];
+let previewObjectUrls = [];
 let imageProcessing = false;
+
+let selectedVideoFile = null;
+let selectedVideoDurationSeconds = null;
+let videoPreviewObjectUrl = "";
+let videoProcessing = false;
 
 let imageModalPath = "";
 let imageModalFishName = "";
@@ -1092,8 +1108,10 @@ function openAddModal() {
 function closeAddModal(force = false) {
   const hasInput =
     fishInput.value.trim() ||
+    caughtAtInput.value ||
     locationInput.value.trim() ||
-    selectedImageBlob;
+    selectedImageBlobs.length > 0 ||
+    Boolean(selectedVideoFile);
 
   if (!force && hasInput) {
     const confirmed = confirm("入力中の内容を閉じますか？");
@@ -1107,23 +1125,37 @@ function closeAddModal(force = false) {
   hideModal(addModal);
 }
 
-function revokePreviewUrl() {
-  if (previewObjectUrl) {
-    URL.revokeObjectURL(previewObjectUrl);
-    previewObjectUrl = "";
+function revokePreviewUrls() {
+  for (const url of previewObjectUrls) {
+    URL.revokeObjectURL(url);
+  }
+
+  previewObjectUrls = [];
+}
+
+function revokeVideoPreviewUrl() {
+  if (videoPreviewObjectUrl) {
+    URL.revokeObjectURL(videoPreviewObjectUrl);
+    videoPreviewObjectUrl = "";
   }
 }
 
-function clearLocationSelection() {
-  selectedLocation = null;
-  locationResolvedFor = "";
+function clearPhotoPreviews() {
+  revokePreviewUrls();
 
-  if (locationMarker) {
-    locationMarker.remove();
-    locationMarker = null;
-  }
+  previewImage1.removeAttribute("src");
+  previewImage2.removeAttribute("src");
+  preview.style.display = "none";
+}
 
-  locationMapSection.classList.add("hidden");
+function clearVideoPreview() {
+  revokeVideoPreviewUrl();
+
+  videoPreview.pause();
+  videoPreview.removeAttribute("src");
+  videoPreview.load();
+  videoPreviewMeta.textContent = "";
+  videoPreviewWrap.classList.add("hidden");
 }
 
 function resetAddForm() {
@@ -1131,15 +1163,18 @@ function resetAddForm() {
   caughtAtInput.value = "";
   locationInput.value = "";
   photoInput.value = "";
+  videoInput.value = "";
 
-  selectedImageBlob = null;
+  selectedImageBlobs = [];
   imageProcessing = false;
 
-  revokePreviewUrl();
-  clearLocationSelection();
+  selectedVideoFile = null;
+  selectedVideoDurationSeconds = null;
+  videoProcessing = false;
 
-  previewImage.removeAttribute("src");
-  preview.style.display = "none";
+  clearPhotoPreviews();
+  clearVideoPreview();
+  clearLocationSelection();
 
   clearMessage(locationMessage);
   clearMessage(addMessage);
@@ -1153,6 +1188,7 @@ function looksLikeHeicFile(file) {
   return (
     fileName.endsWith(".heic") ||
     fileName.endsWith(".heif") ||
+    fileName.endsWith(".hif") ||
     mimeType === "image/heic" ||
     mimeType === "image/heif" ||
     mimeType === "image/heic-sequence" ||
@@ -1160,21 +1196,116 @@ function looksLikeHeicFile(file) {
   );
 }
 
-async function convertHeicToJpegIfNeeded(file) {
-  if (!file) {
-    throw new Error("画像ファイルが選択されていません。");
+function getHeicToApi() {
+  const namespace = window.HeicTo;
+
+  const convert =
+    typeof namespace === "function"
+      ? namespace
+      : typeof namespace?.heicTo === "function"
+        ? namespace.heicTo.bind(namespace)
+        : typeof namespace?.default === "function"
+          ? namespace.default
+          : typeof namespace?.default?.heicTo === "function"
+            ? namespace.default.heicTo.bind(namespace.default)
+            : null;
+
+  const isHeic =
+    typeof namespace?.isHeic === "function"
+      ? namespace.isHeic.bind(namespace)
+      : typeof namespace?.default?.isHeic === "function"
+        ? namespace.default.isHeic.bind(namespace.default)
+        : null;
+
+  return {
+    convert,
+    isHeic
+  };
+}
+
+function normalizeConvertedBlob(result) {
+  const value = Array.isArray(result)
+    ? result[0]
+    : result;
+
+  if (value instanceof Blob) {
+    return value;
   }
 
-  const heicLibrary = window.HeicTo;
+  if (value?.blob instanceof Blob) {
+    return value.blob;
+  }
 
+  return null;
+}
+
+async function convertWithHeicTo(file) {
+  const api = getHeicToApi();
+
+  if (typeof api.convert !== "function") {
+    throw new Error(
+      "heic-toの変換関数を確認できませんでした。"
+    );
+  }
+
+  const result = await api.convert({
+    blob: file,
+    type: "image/jpeg",
+    quality: 0.92
+  });
+
+  const blob = normalizeConvertedBlob(result);
+
+  if (!blob) {
+    throw new Error(
+      "heic-toからJPEG画像が返されませんでした。"
+    );
+  }
+
+  return blob;
+}
+
+async function convertWithHeic2Any(file) {
+  if (typeof window.heic2any !== "function") {
+    throw new Error(
+      "heic2anyの変換関数を確認できませんでした。"
+    );
+  }
+
+  const result = await window.heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.92,
+    multiple: false
+  });
+
+  const blob = normalizeConvertedBlob(result);
+
+  if (!blob) {
+    throw new Error(
+      "heic2anyからJPEG画像が返されませんでした。"
+    );
+  }
+
+  return blob;
+}
+
+async function convertHeicToJpegIfNeeded(file) {
+  if (!file) {
+    throw new Error(
+      "画像ファイルが選択されていません。"
+    );
+  }
+
+  const api = getHeicToApi();
   let isHeic = looksLikeHeicFile(file);
 
-  if (heicLibrary?.isHeic) {
+  if (typeof api.isHeic === "function") {
     try {
-      isHeic = await heicLibrary.isHeic(file);
+      isHeic = await api.isHeic(file);
     } catch (error) {
       console.warn(
-        "HEIC判定に失敗したため、拡張子とMIMEタイプで判定します。",
+        "HEICの内容判定に失敗したため、ファイル名で判定します。",
         error
       );
     }
@@ -1184,37 +1315,76 @@ async function convertHeicToJpegIfNeeded(file) {
     return file;
   }
 
-  if (typeof heicLibrary !== "function") {
-    throw new Error(
-      "HEIC変換ライブラリを読み込めませんでした。通信状態を確認して、ページを再読み込みしてください。"
+  setMessage(
+    addMessage,
+    "HEIC写真をJPEGへ変換中です。端末によっては30秒ほどかかります…",
+    "info"
+  );
+
+  const errors = [];
+
+  try {
+    const jpeg = await convertWithHeicTo(file);
+
+    console.log(
+      "HEIC変換成功: heic-to",
+      {
+        sourceName: file.name,
+        sourceType: file.type,
+        sourceBytes: file.size,
+        outputType: jpeg.type,
+        outputBytes: jpeg.size
+      }
+    );
+
+    return jpeg;
+  } catch (error) {
+    console.warn(
+      "heic-toで変換できなかったため、heic2anyを試します。",
+      error
+    );
+    errors.push(
+      `heic-to: ${error?.message || "変換失敗"}`
     );
   }
 
   setMessage(
     addMessage,
-    "HEIC写真をJPEGへ変換中です。少し時間がかかる場合があります…",
+    "別のHEIC変換方式で再試行しています…",
     "info"
   );
 
-  const converted = await heicLibrary({
-    blob: file,
-    type: "image/jpeg",
-    quality: 0.92
-  });
+  try {
+    const jpeg = await convertWithHeic2Any(file);
 
-  /*
-   * HEIC内に複数画像がある場合、ライブラリが配列を返すことがあります。
-   * 釣果写真では先頭の1枚を使用します。
-   */
-  const jpegBlob = Array.isArray(converted)
-    ? converted[0]
-    : converted;
+    console.log(
+      "HEIC変換成功: heic2any",
+      {
+        sourceName: file.name,
+        sourceType: file.type,
+        sourceBytes: file.size,
+        outputType: jpeg.type,
+        outputBytes: jpeg.size
+      }
+    );
 
-  if (!(jpegBlob instanceof Blob)) {
-    throw new Error("HEIC写真をJPEGへ変換できませんでした。");
+    return jpeg;
+  } catch (error) {
+    console.error(
+      "heic2anyでも変換できませんでした。",
+      error
+    );
+    errors.push(
+      `heic2any: ${error?.message || "変換失敗"}`
+    );
   }
 
-  return jpegBlob;
+  throw new Error(
+    [
+      "このHEIC写真をJPEGへ変換できませんでした。",
+      ...errors
+    ].join(" / ")
+  );
 }
 
 function resizeImageToJpeg(file) {
@@ -1289,46 +1459,429 @@ function resizeImageToJpeg(file) {
 }
 
 async function handlePhotoChange() {
-  const file = photoInput.files?.[0];
+  const files = Array.from(photoInput.files || []);
 
-  selectedImageBlob = null;
-  revokePreviewUrl();
-  previewImage.removeAttribute("src");
-  preview.style.display = "none";
+  selectedImageBlobs = [];
+  clearPhotoPreviews();
+  clearMessage(addMessage);
+
+  if (files.length === 0) {
+    return;
+  }
+
+  if (files.length > 2) {
+    photoInput.value = "";
+    setMessage(
+      addMessage,
+      "写真は2枚まで選択できます。",
+      "error"
+    );
+    return;
+  }
+
+  imageProcessing = true;
+  saveButton.disabled = true;
+  setMessage(
+    addMessage,
+    files.length === 2
+      ? "写真2枚を処理中です…"
+      : "写真を処理中です…",
+    "info"
+  );
+
+  try {
+    for (const file of files) {
+      const browserReadableImage =
+        await convertHeicToJpegIfNeeded(file);
+
+      const jpegBlob =
+        await resizeImageToJpeg(browserReadableImage);
+
+      selectedImageBlobs.push(jpegBlob);
+    }
+
+    const previewImages = [
+      previewImage1,
+      previewImage2
+    ];
+
+    selectedImageBlobs.forEach((blob, index) => {
+      const url = URL.createObjectURL(blob);
+      previewObjectUrls.push(url);
+      previewImages[index].src = url;
+    });
+
+    preview.style.display = "grid";
+
+    setMessage(
+      addMessage,
+      `写真${selectedImageBlobs.length}枚を追加できます。`,
+      "success"
+    );
+  } catch (error) {
+    console.error(error);
+
+    photoInput.value = "";
+    selectedImageBlobs = [];
+    clearPhotoPreviews();
+
+    setMessage(
+      addMessage,
+      error?.message || "写真を読み込めませんでした。",
+      "error"
+    );
+  } finally {
+    imageProcessing = false;
+    saveButton.disabled = videoProcessing;
+  }
+}
+
+function getFileExtension(fileName) {
+  const match = String(fileName || "")
+    .toLowerCase()
+    .match(/\.([a-z0-9]+)$/);
+
+  return match ? match[1] : "";
+}
+
+function getVideoContentType(file) {
+  const extension = getFileExtension(file?.name);
+
+  if (file?.type) {
+    return file.type;
+  }
+
+  if (extension === "mov") {
+    return "video/quicktime";
+  }
+
+  if (extension === "webm") {
+    return "video/webm";
+  }
+
+  return "video/mp4";
+}
+
+function isAllowedVideoFile(file) {
+  const extension = getFileExtension(file?.name);
+  const mimeType = String(file?.type || "").toLowerCase();
+
+  return (
+    ["mp4", "mov", "webm"].includes(extension) ||
+    ["video/mp4", "video/quicktime", "video/webm"].includes(mimeType)
+  );
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return "";
+  }
+
+  const rounded = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(rounded / 60);
+  const remainSeconds = rounded % 60;
+
+  return `${minutes}:${String(remainSeconds).padStart(2, "0")}`;
+}
+
+function readVideoDurationWithElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let finished = false;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+    };
+
+    const finish = (callback) => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      clearTimeout(timeoutId);
+      callback();
+      cleanup();
+    };
+
+    const timeoutId = setTimeout(() => {
+      finish(() => {
+        reject(
+          new Error("動画の再生時間をブラウザから取得できませんでした。")
+        );
+      });
+    }, 12000);
+
+    video.preload = "metadata";
+    video.muted = true;
+
+    video.addEventListener(
+      "loadedmetadata",
+      () => {
+        const duration = Number(video.duration);
+
+        finish(() => {
+          if (Number.isFinite(duration) && duration > 0) {
+            resolve(duration);
+          } else {
+            reject(
+              new Error("動画の再生時間を確認できませんでした。")
+            );
+          }
+        });
+      },
+      { once: true }
+    );
+
+    video.addEventListener(
+      "error",
+      () => {
+        finish(() => {
+          reject(
+            new Error("このブラウザでは動画メタデータを直接読めませんでした。")
+          );
+        });
+      },
+      { once: true }
+    );
+
+    video.src = url;
+  });
+}
+
+async function readIsoBmffDuration(file) {
+  /*
+   * MP4 / MOV の moov > mvhd を軽量に解析します。
+   * mdat本体は読み込まず、各トップレベルboxのヘッダーだけを見て
+   * moovまでスキップするので、大きい動画でも全体をメモリに載せません。
+   */
+  let offset = 0;
+
+  while (offset + 8 <= file.size) {
+    const headerBuffer =
+      await file.slice(offset, Math.min(offset + 16, file.size)).arrayBuffer();
+
+    if (headerBuffer.byteLength < 8) {
+      break;
+    }
+
+    const header = new DataView(headerBuffer);
+    let boxSize = header.getUint32(0, false);
+    const boxType = String.fromCharCode(
+      header.getUint8(4),
+      header.getUint8(5),
+      header.getUint8(6),
+      header.getUint8(7)
+    );
+
+    let headerSize = 8;
+
+    if (boxSize === 1) {
+      if (headerBuffer.byteLength < 16) {
+        break;
+      }
+
+      boxSize = Number(header.getBigUint64(8, false));
+      headerSize = 16;
+    } else if (boxSize === 0) {
+      boxSize = file.size - offset;
+    }
+
+    if (!Number.isFinite(boxSize) || boxSize < headerSize) {
+      break;
+    }
+
+    if (boxType === "moov") {
+      const moovBuffer =
+        await file.slice(offset, offset + boxSize).arrayBuffer();
+
+      const duration =
+        parseMvhdDurationFromMoov(moovBuffer, headerSize);
+
+      if (Number.isFinite(duration) && duration > 0) {
+        return duration;
+      }
+
+      break;
+    }
+
+    offset += boxSize;
+  }
+
+  throw new Error("MP4/MOVの再生時間情報を確認できませんでした。");
+}
+
+function parseMvhdDurationFromMoov(buffer, moovHeaderSize = 8) {
+  const view = new DataView(buffer);
+  let offset = moovHeaderSize;
+
+  while (offset + 8 <= buffer.byteLength) {
+    let boxSize = view.getUint32(offset, false);
+    const boxType = String.fromCharCode(
+      view.getUint8(offset + 4),
+      view.getUint8(offset + 5),
+      view.getUint8(offset + 6),
+      view.getUint8(offset + 7)
+    );
+
+    let headerSize = 8;
+
+    if (boxSize === 1) {
+      if (offset + 16 > buffer.byteLength) {
+        return null;
+      }
+
+      boxSize = Number(
+        view.getBigUint64(offset + 8, false)
+      );
+      headerSize = 16;
+    } else if (boxSize === 0) {
+      boxSize = buffer.byteLength - offset;
+    }
+
+    if (
+      !Number.isFinite(boxSize) ||
+      boxSize < headerSize ||
+      offset + boxSize > buffer.byteLength
+    ) {
+      return null;
+    }
+
+    if (boxType === "mvhd") {
+      const payload = offset + headerSize;
+
+      if (payload + 20 > buffer.byteLength) {
+        return null;
+      }
+
+      const version = view.getUint8(payload);
+
+      if (version === 1) {
+        if (payload + 32 > buffer.byteLength) {
+          return null;
+        }
+
+        const timescale =
+          view.getUint32(payload + 20, false);
+        const duration =
+          Number(view.getBigUint64(payload + 24, false));
+
+        return timescale > 0
+          ? duration / timescale
+          : null;
+      }
+
+      const timescale =
+        view.getUint32(payload + 12, false);
+      const duration =
+        view.getUint32(payload + 16, false);
+
+      return timescale > 0
+        ? duration / timescale
+        : null;
+    }
+
+    offset += boxSize;
+  }
+
+  return null;
+}
+
+async function getVideoDuration(file) {
+  try {
+    return await readVideoDurationWithElement(file);
+  } catch (elementError) {
+    const extension = getFileExtension(file?.name);
+
+    if (extension === "mp4" || extension === "mov") {
+      console.warn(
+        "video要素で時間を取得できなかったため、MP4/MOVコンテナを直接解析します。",
+        elementError
+      );
+
+      return readIsoBmffDuration(file);
+    }
+
+    throw elementError;
+  }
+}
+
+async function handleVideoChange() {
+  const file = videoInput.files?.[0] || null;
+
+  selectedVideoFile = null;
+  selectedVideoDurationSeconds = null;
+  clearVideoPreview();
   clearMessage(addMessage);
 
   if (!file) {
     return;
   }
 
-  imageProcessing = true;
-  saveButton.disabled = true;
-  setMessage(addMessage, "写真を処理中です…", "info");
-
-  try {
-    const browserReadableImage =
-      await convertHeicToJpegIfNeeded(file);
-
-    selectedImageBlob =
-      await resizeImageToJpeg(browserReadableImage);
-
-    previewObjectUrl = URL.createObjectURL(selectedImageBlob);
-    previewImage.src = previewObjectUrl;
-    preview.style.display = "block";
-    setMessage(addMessage, "写真を追加できます。", "success");
-  } catch (error) {
-    console.error(error);
-    photoInput.value = "";
-    selectedImageBlob = null;
+  if (!isAllowedVideoFile(file)) {
+    videoInput.value = "";
     setMessage(
       addMessage,
-      error?.message ||
-        "写真を読み込めませんでした。HEICの場合は通信状態を確認して、もう一度お試しください。",
+      "動画は .mp4、.mov、.webm のいずれかを選んでください。",
+      "error"
+    );
+    return;
+  }
+
+  videoProcessing = true;
+  saveButton.disabled = true;
+  setMessage(
+    addMessage,
+    "動画の長さを確認しています…",
+    "info"
+  );
+
+  try {
+    const duration = await getVideoDuration(file);
+
+    if (!Number.isFinite(duration) || duration <= 0) {
+      throw new Error("動画の再生時間を確認できませんでした。");
+    }
+
+    if (duration > 180.5) {
+      throw new Error(
+        `動画は3分以内にしてください。選択した動画は約${formatDuration(duration)}です。`
+      );
+    }
+
+    selectedVideoFile = file;
+    selectedVideoDurationSeconds = duration;
+
+    videoPreviewObjectUrl = URL.createObjectURL(file);
+    videoPreview.src = videoPreviewObjectUrl;
+    videoPreviewMeta.textContent =
+      `${file.name} ・ ${formatDuration(duration)}`;
+    videoPreviewWrap.classList.remove("hidden");
+
+    setMessage(
+      addMessage,
+      `動画を追加できます（${formatDuration(duration)}）。`,
+      "success"
+    );
+  } catch (error) {
+    console.error(error);
+
+    videoInput.value = "";
+    selectedVideoFile = null;
+    selectedVideoDurationSeconds = null;
+    clearVideoPreview();
+
+    setMessage(
+      addMessage,
+      error?.message || "動画を読み込めませんでした。",
       "error"
     );
   } finally {
-    imageProcessing = false;
-    saveButton.disabled = false;
+    videoProcessing = false;
+    saveButton.disabled = imageProcessing;
   }
 }
 
@@ -1340,6 +1893,22 @@ function makeStorageFileName() {
   return `${Date.now()}-${Math.random()
     .toString(36)
     .slice(2, 12)}.jpg`;
+}
+
+function makeVideoStorageFileName(file) {
+  const extension = getFileExtension(file?.name);
+
+  const safeExtension = ["mp4", "mov", "webm"].includes(extension)
+    ? extension
+    : "mp4";
+
+  if (globalThis.crypto?.randomUUID) {
+    return `${crypto.randomUUID()}.${safeExtension}`;
+  }
+
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 12)}.${safeExtension}`;
 }
 
 function makeRecordId() {
@@ -1675,34 +2244,108 @@ async function saveFish() {
     return;
   }
 
-  if (imageProcessing) {
+  if (imageProcessing || videoProcessing) {
     setMessage(
       addMessage,
-      "写真の処理が終わるまでお待ちください。",
+      "写真・動画の処理が終わるまでお待ちください。",
       "info"
     );
     return;
   }
 
-  saveButton.disabled = true;
-  setMessage(addMessage, "保存中です…", "info");
+  if (selectedImageBlobs.length > 2) {
+    setMessage(
+      addMessage,
+      "写真は2枚まで保存できます。",
+      "error"
+    );
+    return;
+  }
 
+  if (
+    selectedVideoFile &&
+    (
+      !Number.isFinite(selectedVideoDurationSeconds) ||
+      selectedVideoDurationSeconds > 180.5
+    )
+  ) {
+    setMessage(
+      addMessage,
+      "動画は3分以内のものを選んでください。",
+      "error"
+    );
+    return;
+  }
+
+  saveButton.disabled = true;
+  setMessage(
+    addMessage,
+    selectedVideoFile
+      ? "写真・動画をアップロード中です。動画は少し時間がかかる場合があります…"
+      : "保存中です…",
+    "info"
+  );
+
+  const uploadedPaths = [];
   let imagePath = null;
+  let imagePath2 = null;
+  let videoPath = null;
 
   try {
-    if (selectedImageBlob) {
-      imagePath = `${currentUser.id}/${makeStorageFileName()}`;
+    if (selectedImageBlobs[0]) {
+      imagePath =
+        `${currentUser.id}/${makeStorageFileName()}`;
 
-      const { error: uploadError } = await supabaseClient.storage
+      const { error } = await supabaseClient.storage
         .from("fish-photos")
-        .upload(imagePath, selectedImageBlob, {
+        .upload(imagePath, selectedImageBlobs[0], {
           contentType: "image/jpeg",
           upsert: false
         });
 
-      if (uploadError) {
-        throw uploadError;
+      if (error) {
+        throw error;
       }
+
+      uploadedPaths.push(imagePath);
+    }
+
+    if (selectedImageBlobs[1]) {
+      imagePath2 =
+        `${currentUser.id}/${makeStorageFileName()}`;
+
+      const { error } = await supabaseClient.storage
+        .from("fish-photos")
+        .upload(imagePath2, selectedImageBlobs[1], {
+          contentType: "image/jpeg",
+          upsert: false
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      uploadedPaths.push(imagePath2);
+    }
+
+    if (selectedVideoFile) {
+      videoPath =
+        `${currentUser.id}/videos/${makeVideoStorageFileName(
+          selectedVideoFile
+        )}`;
+
+      const { error } = await supabaseClient.storage
+        .from("fish-photos")
+        .upload(videoPath, selectedVideoFile, {
+          contentType: getVideoContentType(selectedVideoFile),
+          upsert: false
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      uploadedPaths.push(videoPath);
     }
 
     const { error: insertError } = await supabaseClient
@@ -1715,16 +2358,19 @@ async function saveFish() {
         latitude: selectedLocation?.lat ?? null,
         longitude: selectedLocation?.lng ?? null,
         image_path: imagePath,
+        image_path_2: imagePath2,
+        video_path: videoPath,
+        video_mime_type: selectedVideoFile
+          ? getVideoContentType(selectedVideoFile)
+          : null,
+        video_duration_seconds:
+          selectedVideoDurationSeconds !== null
+            ? Math.round(selectedVideoDurationSeconds)
+            : null,
         user_id: currentUser.id
       });
 
     if (insertError) {
-      if (imagePath) {
-        await supabaseClient.storage
-          .from("fish-photos")
-          .remove([imagePath]);
-      }
-
       throw insertError;
     }
 
@@ -1732,6 +2378,7 @@ async function saveFish() {
     hideModal(addModal);
     setActiveTab("list");
     await loadRecords(false);
+
     setMessage(
       appMessage,
       fishName === "不明魚"
@@ -1741,14 +2388,51 @@ async function saveFish() {
     );
   } catch (error) {
     console.error(error);
+
+    if (uploadedPaths.length > 0) {
+      const { error: cleanupError } =
+        await supabaseClient.storage
+          .from("fish-photos")
+          .remove(uploadedPaths);
+
+      if (cleanupError) {
+        console.error(
+          "アップロード済みメディアの後片付けに失敗しました。",
+          cleanupError
+        );
+      }
+    }
+
     setMessage(
       addMessage,
       `保存できませんでした：${error?.message || "不明なエラー"}`,
       "error"
     );
   } finally {
-    saveButton.disabled = false;
+    saveButton.disabled = imageProcessing || videoProcessing;
   }
+}
+
+async function createSignedUrlForMedia(path) {
+  if (!path) {
+    return {
+      url: null,
+      error: false
+    };
+  }
+
+  const { data, error } =
+    await supabaseClient.storage
+      .from("fish-photos")
+      .createSignedUrl(
+        path,
+        60 * 60 * 24
+      );
+
+  return {
+    url: error ? null : data?.signedUrl || null,
+    error: Boolean(error)
+  };
 }
 
 async function loadRecords(showLoading = true) {
@@ -1766,7 +2450,7 @@ async function loadRecords(showLoading = true) {
     const { data: records, error } = await supabaseClient
       .from("fish_records")
       .select(
-        "id, fish_name, caught_at, location_name, latitude, longitude, image_path, created_at"
+        "id, fish_name, caught_at, location_name, latitude, longitude, image_path, image_path_2, video_path, video_mime_type, video_duration_seconds, created_at"
       )
       .order("created_at", { ascending: false });
 
@@ -1776,28 +2460,24 @@ async function loadRecords(showLoading = true) {
 
     allRecords = await Promise.all(
       (records || []).map(async (record) => {
-        if (!record.image_path) {
-          return {
-            ...record,
-            signedUrl: null,
-            photoLoadError: false
-          };
-        }
-
-        const { data, error: signedUrlError } =
-          await supabaseClient.storage
-            .from("fish-photos")
-            .createSignedUrl(
-              record.image_path,
-              60 * 60 * 24
-            );
+        const [
+          firstPhoto,
+          secondPhoto,
+          video
+        ] = await Promise.all([
+          createSignedUrlForMedia(record.image_path),
+          createSignedUrlForMedia(record.image_path_2),
+          createSignedUrlForMedia(record.video_path)
+        ]);
 
         return {
           ...record,
-          signedUrl: signedUrlError
-            ? null
-            : data?.signedUrl || null,
-          photoLoadError: Boolean(signedUrlError)
+          signedUrl: firstPhoto.url,
+          signedUrl2: secondPhoto.url,
+          videoSignedUrl: video.url,
+          photoLoadError:
+            firstPhoto.error || secondPhoto.error,
+          videoLoadError: video.error
         };
       })
     );
@@ -1882,10 +2562,13 @@ function createFishCard(record) {
   const photoArea = document.createElement("div");
   photoArea.className = "fish-card-photo-area";
 
-  if (record.signedUrl) {
+  const cardPhotoUrl =
+    record.signedUrl || record.signedUrl2;
+
+  if (cardPhotoUrl) {
     const image = document.createElement("img");
     image.className = "fish-card-photo";
-    image.src = record.signedUrl;
+    image.src = cardPhotoUrl;
     image.alt = record.fish_name;
     image.loading = "lazy";
     photoArea.appendChild(image);
@@ -1894,10 +2577,35 @@ function createFishCard(record) {
     placeholder.className = record.photoLoadError
       ? "fish-card-photo-error"
       : "fish-card-no-photo";
+
     placeholder.textContent = record.photoLoadError
       ? "写真を読み込めません"
-      : "写真なし";
+      : record.video_path
+        ? "🎥 動画あり"
+        : "写真なし";
+
     photoArea.appendChild(placeholder);
+  }
+
+  const photoCount =
+    Number(Boolean(record.image_path)) +
+    Number(Boolean(record.image_path_2));
+
+  const mediaLabels = [];
+
+  if (photoCount > 0) {
+    mediaLabels.push(`写真${photoCount}`);
+  }
+
+  if (record.video_path) {
+    mediaLabels.push("動画");
+  }
+
+  if (mediaLabels.length > 0) {
+    const mediaBadge = document.createElement("span");
+    mediaBadge.className = "fish-card-media-badge";
+    mediaBadge.textContent = mediaLabels.join("＋");
+    photoArea.appendChild(mediaBadge);
   }
 
   const body = document.createElement("div");
@@ -2037,10 +2745,13 @@ function createMapInfoContent(record) {
   const container = document.createElement("div");
   container.className = "map-info";
 
-  if (record.signedUrl) {
+  const mapPhotoUrl =
+    record.signedUrl || record.signedUrl2;
+
+  if (mapPhotoUrl) {
     const image = document.createElement("img");
     image.className = "map-info-photo";
-    image.src = record.signedUrl;
+    image.src = mapPhotoUrl;
     image.alt = record.fish_name;
     container.appendChild(image);
   }
@@ -2119,6 +2830,7 @@ function openRecordDetail(record) {
   detailLocation.textContent = record.location_name
     ? `📍 ${record.location_name}`
     : "場所なし";
+
   const recordDate = getRecordDateValue(record);
 
   if (recordDate) {
@@ -2127,7 +2839,8 @@ function openRecordDetail(record) {
     detailTideBadge.classList.remove("hidden");
 
     if (record.tideTimes) {
-      detailTideTimes.textContent = formatFullTideTimes(record.tideTimes);
+      detailTideTimes.textContent =
+        formatFullTideTimes(record.tideTimes);
       detailTideTimes.classList.remove("hidden");
     } else {
       detailTideTimes.textContent = "";
@@ -2143,20 +2856,50 @@ function openRecordDetail(record) {
 
   if (record.signedUrl) {
     detailPhoto.src = record.signedUrl;
-    detailPhoto.alt = record.fish_name;
+    detailPhoto.alt = `${record.fish_name}の写真1`;
     detailPhotoButton.classList.remove("hidden");
-    detailNoPhoto.classList.add("hidden");
-    if (detailDownloadButton) {
-      if (detailDownloadButton) {
-      detailDownloadButton.classList.add("hidden");
-    }
-    }
   } else {
     detailPhoto.removeAttribute("src");
     detailPhotoButton.classList.add("hidden");
-    detailNoPhoto.classList.remove("hidden");
-    detailDownloadButton.classList.add("hidden");
   }
+
+  if (record.signedUrl2) {
+    detailPhoto2.src = record.signedUrl2;
+    detailPhoto2.alt = `${record.fish_name}の写真2`;
+    detailPhotoButton2.classList.remove("hidden");
+  } else {
+    detailPhoto2.removeAttribute("src");
+    detailPhotoButton2.classList.add("hidden");
+  }
+
+  if (record.videoSignedUrl) {
+    detailVideo.src = record.videoSignedUrl;
+    detailVideoMeta.textContent =
+      Number.isFinite(Number(record.video_duration_seconds))
+        ? `動画 ${formatDuration(
+            Number(record.video_duration_seconds)
+          )}`
+        : "動画";
+
+    detailVideoWrap.classList.remove("hidden");
+  } else {
+    detailVideo.pause();
+    detailVideo.removeAttribute("src");
+    detailVideo.load();
+    detailVideoMeta.textContent = "";
+    detailVideoWrap.classList.add("hidden");
+  }
+
+  const hasAnyMedia = Boolean(
+    record.signedUrl ||
+    record.signedUrl2 ||
+    record.videoSignedUrl
+  );
+
+  detailNoPhoto.classList.toggle(
+    "hidden",
+    hasAnyMedia
+  );
 
   showModal(detailModal);
   renderDetailMap(record);
@@ -2165,7 +2908,15 @@ function openRecordDetail(record) {
 function closeDetailModal() {
   currentDetailRecord = null;
   resetDetailFishInfo();
+
   detailPhoto.removeAttribute("src");
+  detailPhoto2.removeAttribute("src");
+
+  detailVideo.pause();
+  detailVideo.removeAttribute("src");
+  detailVideo.load();
+  detailVideoMeta.textContent = "";
+
   hideModal(detailModal);
 }
 
@@ -2237,28 +2988,34 @@ async function deleteCurrentDetailRecord() {
       throw deleteRecordError;
     }
 
-    let photoDeleteFailed = false;
+    const mediaPaths = [
+      record.image_path,
+      record.image_path_2,
+      record.video_path
+    ].filter(Boolean);
 
-    if (record.image_path) {
-      const { error: deletePhotoError } =
+    let mediaDeleteFailed = false;
+
+    if (mediaPaths.length > 0) {
+      const { error: deleteMediaError } =
         await supabaseClient.storage
           .from("fish-photos")
-          .remove([record.image_path]);
+          .remove(mediaPaths);
 
-      photoDeleteFailed = Boolean(deletePhotoError);
+      mediaDeleteFailed = Boolean(deleteMediaError);
 
-      if (deletePhotoError) {
-        console.error(deletePhotoError);
+      if (deleteMediaError) {
+        console.error(deleteMediaError);
       }
     }
 
     closeDetailModal();
     await loadRecords(false);
 
-    if (photoDeleteFailed) {
+    if (mediaDeleteFailed) {
       setMessage(
         appMessage,
-        "記録は削除しましたが、写真ファイルの削除に失敗しました。",
+        "記録は削除しましたが、写真・動画ファイルの削除に失敗しました。",
         "error"
       );
     } else {
@@ -2274,15 +3031,31 @@ async function deleteCurrentDetailRecord() {
   }
 }
 
-function openImageModal(record) {
-  if (!record?.signedUrl || !record?.image_path) {
+function openImageModalByMedia(
+  signedUrl,
+  imagePath,
+  fishName
+) {
+  if (!signedUrl || !imagePath) {
     return;
   }
 
-  modalImage.src = record.signedUrl;
-  imageModalPath = record.image_path;
-  imageModalFishName = record.fish_name;
+  modalImage.src = signedUrl;
+  imageModalPath = imagePath;
+  imageModalFishName = fishName || "魚";
   showModal(imageModal);
+}
+
+function openImageModal(record) {
+  if (!record) {
+    return;
+  }
+
+  openImageModalByMedia(
+    record.signedUrl,
+    record.image_path,
+    record.fish_name
+  );
 }
 
 function closeImageModal() {
@@ -2864,6 +3637,7 @@ locationCheckButton.addEventListener(
 );
 saveButton.addEventListener("click", saveFish);
 photoInput.addEventListener("change", handlePhotoChange);
+videoInput.addEventListener("change", handleVideoChange);
 
 locationInput.addEventListener("input", () => {
   const currentLocationName = locationInput.value.trim();
@@ -2901,6 +3675,19 @@ detailEditNameButton.addEventListener("click", editCurrentFishName);
 detailPhotoButton.addEventListener("click", () => {
   openImageModal(currentDetailRecord);
 });
+
+detailPhotoButton2.addEventListener("click", () => {
+  if (!currentDetailRecord) {
+    return;
+  }
+
+  openImageModalByMedia(
+    currentDetailRecord.signedUrl2,
+    currentDetailRecord.image_path_2,
+    currentDetailRecord.fish_name
+  );
+});
+
 detailDeleteButton.addEventListener(
   "click",
   deleteCurrentDetailRecord

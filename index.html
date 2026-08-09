@@ -169,12 +169,44 @@
         <div id="locationMap" class="map-box location-map"></div>
       </section>
 
-      <label for="photoInput">写真</label>
-      <input id="photoInput" type="file" accept="image/*,.heic,.heif,image/heic,image/heif" />
-      <div class="photo-note">写真なしでも保存できます。</div>
+      <label for="photoInput">写真（最大2枚）</label>
+      <input
+        id="photoInput"
+        type="file"
+        multiple
+        accept="image/*,.heic,.heif,.hif,image/heic,image/heif,image/heic-sequence,image/heif-sequence"
+      />
+      <div class="photo-note">
+        JPEG・PNG・HEICなど。2枚まで選べます。写真なしでも保存できます。
+      </div>
 
-      <div id="preview" class="preview">
-        <img id="previewImage" alt="選択した写真のプレビュー" />
+      <div id="preview" class="preview preview-grid">
+        <img id="previewImage1" alt="選択した写真1のプレビュー" />
+        <img id="previewImage2" alt="選択した写真2のプレビュー" />
+      </div>
+
+      <label for="videoInput">
+        動画
+        <span class="optional-label">任意・3分以内</span>
+      </label>
+      <input
+        id="videoInput"
+        type="file"
+        accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
+      />
+      <div class="photo-note">
+        MP4・MOV・WebMに対応。3分を超える動画は保存できません。
+      </div>
+
+      <div id="videoPreviewWrap" class="video-preview-wrap hidden">
+        <video
+          id="videoPreview"
+          class="video-preview"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+        <div id="videoPreviewMeta" class="video-preview-meta"></div>
       </div>
 
       <button id="saveButton" class="primary-button full-button" type="button">
@@ -195,12 +227,30 @@
         </button>
       </div>
 
-      <button id="detailPhotoButton" class="detail-photo-button hidden" type="button">
-        <img id="detailPhoto" class="detail-photo" alt="魚の写真" />
-        <span>写真をタップすると拡大</span>
-      </button>
+      <div id="detailMediaGallery" class="detail-media-gallery">
+        <button id="detailPhotoButton" class="detail-photo-button hidden" type="button">
+          <img id="detailPhoto" class="detail-photo" alt="魚の写真1" />
+          <span>写真1をタップすると拡大</span>
+        </button>
 
-      <div id="detailNoPhoto" class="detail-no-photo hidden">写真なし</div>
+        <button id="detailPhotoButton2" class="detail-photo-button hidden" type="button">
+          <img id="detailPhoto2" class="detail-photo" alt="魚の写真2" />
+          <span>写真2をタップすると拡大</span>
+        </button>
+
+        <div id="detailVideoWrap" class="detail-video-wrap hidden">
+          <video
+            id="detailVideo"
+            class="detail-video"
+            controls
+            playsinline
+            preload="metadata"
+          ></video>
+          <div id="detailVideoMeta" class="detail-video-meta"></div>
+        </div>
+      </div>
+
+      <div id="detailNoPhoto" class="detail-no-photo hidden">写真・動画なし</div>
 
       <div class="detail-fish-name-row">
         <div id="detailFishName" class="detail-fish-name"></div>
@@ -365,6 +415,7 @@
   ></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic-to@1.5.2/dist/iife/heic-to.js"></script>
-  <script src="./script.js?v=14"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="./script.js?v=16"></script>
 </body>
 </html>
