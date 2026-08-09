@@ -1,4 +1,4 @@
-console.log("fish-memo media support v16");
+console.log("fish-memo media support v17");
 console.log("fish-memo HEIC support v15");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
@@ -2000,6 +2000,18 @@ function setLocationPin(position) {
     selectedLocation.lat,
     selectedLocation.lng
   ]);
+}
+
+function clearLocationSelection() {
+  selectedLocation = null;
+  locationResolvedFor = "";
+
+  if (locationMarker && locationMap) {
+    locationMap.removeLayer(locationMarker);
+  }
+
+  locationMarker = null;
+  locationMapSection.classList.add("hidden");
 }
 
 function normalizeGeocodeQuery(value) {
