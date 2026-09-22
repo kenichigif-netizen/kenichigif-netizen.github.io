@@ -1196,3 +1196,127 @@ input:focus {
 .fish-card-edit-button:active {
   transform: translateY(1px);
 }
+
+
+/* v23: AI fish identification */
+.ai-fish-section {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #cfe3f3;
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.ai-fish-title {
+  color: #124f82;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.ai-fish-note {
+  margin-top: 4px;
+  color: #607d8b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai-fish-button {
+  border: 0;
+  border-radius: 11px;
+  background: #0f75bd;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ai-fish-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.ai-fish-result {
+  margin-top: 12px;
+}
+
+.ai-fish-overall-note {
+  margin-bottom: 9px;
+  color: #455a64;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ai-fish-candidates {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-fish-candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #bed8eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ai-fish-candidate-main {
+  min-width: 0;
+}
+
+.ai-fish-candidate-name {
+  color: #173b56;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ai-fish-candidate-reason {
+  margin-top: 3px;
+  color: #607d8b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-fish-confidence {
+  white-space: nowrap;
+  color: #0f75bd;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-fish-use-button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: #e3f2fd;
+  color: #0d5e9b;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fish-card-edit-row {
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.fish-card-ai-button {
+  min-width: 76px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #a8d5b5;
+  border-radius: 999px;
+  background: #eefaf1;
+  color: #24733a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fish-card-ai-button:active {
+  transform: translateY(1px);
+}

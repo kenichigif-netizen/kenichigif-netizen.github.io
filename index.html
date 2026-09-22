@@ -185,6 +185,32 @@
         <img id="previewImage2" alt="選択した写真2のプレビュー" />
       </div>
 
+      <section id="aiFishSection" class="ai-fish-section hidden">
+        <div class="ai-fish-heading-row">
+          <div>
+            <div class="ai-fish-title">AI魚種判定</div>
+            <div class="ai-fish-note">
+              写真から魚種候補を最大3件出します。AI判定は目安なので、保存前に確認してください。
+            </div>
+          </div>
+        </div>
+
+        <button
+          id="aiFishButton"
+          class="ai-fish-button full-button"
+          type="button"
+        >
+          AIで魚種を判定
+        </button>
+
+        <div id="aiFishMessage" class="message"></div>
+
+        <div id="aiFishResult" class="ai-fish-result hidden">
+          <div id="aiFishOverallNote" class="ai-fish-overall-note"></div>
+          <div id="aiFishCandidates" class="ai-fish-candidates"></div>
+        </div>
+      </section>
+
       <label for="videoInput">
         動画
         <span class="optional-label">任意・3分以内</span>
@@ -419,6 +445,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic-to@1.5.2/dist/iife/heic-to.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="./app-v22.js?v=22"></script>
+  <script src="./app-v23.js?v=23"></script>
 </body>
 </html>
