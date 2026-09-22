@@ -1171,3 +1171,79 @@ input:focus {
     height: 150px;
   }
 }
+
+
+/* Gemini AI fish identification */
+.ai-identify-button {
+  margin-top: 12px;
+  background: linear-gradient(135deg, #1668d4, #0a9edc);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-identify-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-identify-result {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #cfe4fb;
+  border-radius: 12px;
+  background: #f5faff;
+}
+
+.ai-identify-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #496276;
+  margin-bottom: 6px;
+}
+
+.ai-identify-primary {
+  font-size: 19px;
+  font-weight: 800;
+  color: #123b5a;
+  margin-bottom: 4px;
+}
+
+.ai-identify-reason {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #405463;
+  margin-bottom: 10px;
+}
+
+.ai-identify-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-candidate-button {
+  border: 1px solid #7bb7e8;
+  background: #fff;
+  color: #175d91;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-candidate-button:active {
+  transform: translateY(1px);
+}
+
+.ai-identify-note {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6c7b86;
+}
