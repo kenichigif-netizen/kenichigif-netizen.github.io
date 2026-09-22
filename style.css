@@ -1173,77 +1173,26 @@ input:focus {
 }
 
 
-/* Gemini AI fish identification */
-.ai-identify-button {
-  margin-top: 12px;
-  background: linear-gradient(135deg, #1668d4, #0a9edc);
-  color: #fff;
-  border: 0;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.ai-identify-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ai-identify-result {
-  margin-top: 10px;
-  padding: 12px;
-  border: 1px solid #cfe4fb;
-  border-radius: 12px;
-  background: #f5faff;
-}
-
-.ai-identify-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #496276;
-  margin-bottom: 6px;
-}
-
-.ai-identify-primary {
-  font-size: 19px;
-  font-weight: 800;
-  color: #123b5a;
-  margin-bottom: 4px;
-}
-
-.ai-identify-reason {
-  font-size: 13px;
-  line-height: 1.6;
-  color: #405463;
-  margin-bottom: 10px;
-}
-
-.ai-identify-candidates {
+/* v21: record edit controls */
+.fish-card-edit-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
-.ai-candidate-button {
-  border: 1px solid #7bb7e8;
-  background: #fff;
-  color: #175d91;
+.fish-card-edit-button {
+  min-width: 64px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #b9d7ee;
   border-radius: 999px;
-  padding: 7px 10px;
+  background: #eef7ff;
+  color: #1565c0;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
 }
 
-.ai-candidate-button:active {
+.fish-card-edit-button:active {
   transform: translateY(1px);
-}
-
-.ai-identify-note {
-  margin-top: 9px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #6c7b86;
 }

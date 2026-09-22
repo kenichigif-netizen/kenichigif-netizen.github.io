@@ -124,7 +124,7 @@
   <div id="addModal" class="modal modal-light" aria-hidden="true">
     <div class="modal-sheet add-sheet">
       <div class="modal-header">
-        <h2>釣果追加</h2>
+        <h2 id="addModalTitle">釣果追加</h2>
         <button id="closeAddButton" class="icon-button" type="button" aria-label="閉じる">
           ×
         </button>
@@ -176,7 +176,7 @@
         multiple
         accept="image/*,.heic,.heif,.hif,image/heic,image/heif,image/heic-sequence,image/heif-sequence"
       />
-      <div class="photo-note">
+      <div id="photoNote" class="photo-note">
         JPEG・PNG・HEICなど。2枚まで選べます。写真なしでも保存できます。
       </div>
 
@@ -184,25 +184,6 @@
         <img id="previewImage1" alt="選択した写真1のプレビュー" />
         <img id="previewImage2" alt="選択した写真2のプレビュー" />
       </div>
-
-      <button
-        id="aiIdentifyButton"
-        class="ai-identify-button full-button"
-        type="button"
-        disabled
-      >
-        AIで魚種を判定
-      </button>
-
-      <section id="aiIdentifyResult" class="ai-identify-result hidden">
-        <div class="ai-identify-title">AI判定（参考）</div>
-        <div id="aiIdentifyPrimary" class="ai-identify-primary"></div>
-        <div id="aiIdentifyReason" class="ai-identify-reason"></div>
-        <div id="aiIdentifyCandidates" class="ai-identify-candidates"></div>
-        <div class="ai-identify-note">
-          AIは間違うことがあります。魚種名を確認してから保存してください。
-        </div>
-      </section>
 
       <label for="videoInput">
         動画
@@ -213,7 +194,7 @@
         type="file"
         accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
       />
-      <div class="photo-note">
+      <div id="videoNote" class="photo-note">
         MP4・MOV・WebMに対応。3分を超える動画は保存できません。
       </div>
 
@@ -404,6 +385,9 @@
       <div id="detailMap" class="map-box detail-map hidden"></div>
 
       <div class="detail-actions">
+        <button id="detailEditRecordButton" class="secondary-button" type="button">
+          編集する
+        </button>
         <button id="detailDeleteButton" class="danger-button" type="button">
           削除
         </button>
