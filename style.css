@@ -1320,3 +1320,15 @@ input:focus {
 .fish-card-ai-button:active {
   transform: translateY(1px);
 }
+
+/* v27: EXIF auto-fill */
+.exif-info {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid #cfe3d7;
+  border-radius: 10px;
+  background: #f5fbf7;
+  color: #355c43;
+  font-size: 12px;
+  line-height: 1.55;
+}
