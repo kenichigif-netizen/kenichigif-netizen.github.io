@@ -1332,3 +1332,18 @@ input:focus {
   font-size: 12px;
   line-height: 1.55;
 }
+
+
+/* v28: iPhone / PWA safe area */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+@media (display-mode: standalone) {
+  body {
+    min-height: 100dvh;
+  }
+}
