@@ -1347,3 +1347,25 @@ body {
     min-height: 100dvh;
   }
 }
+
+
+/* v29: detail photo direct download */
+.detail-photo-item {
+  margin-bottom: 14px;
+}
+
+.detail-photo-download-button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px 14px;
+  border: 1px solid #1976d2;
+  border-radius: 10px;
+  background: #fff;
+  color: #1565c0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.detail-photo-download-button:active {
+  background: #eaf3fb;
+}
