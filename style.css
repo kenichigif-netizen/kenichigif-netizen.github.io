@@ -1369,3 +1369,9 @@ body {
 .detail-photo-download-button:active {
   background: #eaf3fb;
 }
+
+
+/* v30: dedicated photo server */
+.photo-note {
+  line-height: 1.55;
+}

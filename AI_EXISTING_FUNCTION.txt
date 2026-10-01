@@ -1,0 +1,20 @@
+fish note v24
+
+既存の Supabase Edge Function「fish-identify」を再利用します。
+
+新しい fish-ai Function は不要です。
+GEMINI_API_KEY も既存の fish-identify が動いていた時のものをそのまま利用します。
+
+GitHubへアップロードするファイル:
+- index.html
+- style.css
+- app-v24.js
+
+動作:
+- 不明魚カードに「AI判定」
+- 登録済み写真をSupabase Storageから読み込み、既存 fish-identify へ送信
+- 新規登録時は選択中の写真を fish-identify へ送信
+- 最大2枚の写真を利用
+- 候補を最大3件表示
+- 選択した魚名を魚種欄へ入力
+- 自動保存しない
