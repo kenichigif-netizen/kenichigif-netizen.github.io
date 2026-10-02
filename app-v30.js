@@ -1,4 +1,4 @@
-console.log("fish-memo v30.2 - XREA shared SSL photo storage");
+console.log("fish-memo v30.4 - XREA simple CORS photo storage");
 console.log("fish-memo HEIC support v15");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
@@ -1474,6 +1474,7 @@ async function uploadPhotoToXrea(blob) {
   const accessToken = await getCurrentAccessToken();
   const formData = new FormData();
 
+  formData.append("access_token", accessToken);
   formData.append(
     "photo",
     blob,
@@ -1484,9 +1485,6 @@ async function uploadPhotoToXrea(blob) {
     `${XREA_IMAGE_API_BASE}/upload.php`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
       body: formData
     }
   );
@@ -1504,16 +1502,16 @@ async function uploadPhotoToXrea(blob) {
 
 async function getXreaViewUrl(imagePath) {
   const accessToken = await getCurrentAccessToken();
+  const formData = new FormData();
+
+  formData.append("access_token", accessToken);
+  formData.append("file", imagePath);
 
   const response = await fetch(
-    `${XREA_IMAGE_API_BASE}/view-url.php?file=${encodeURIComponent(
-      imagePath
-    )}`,
+    `${XREA_IMAGE_API_BASE}/view-url.php`,
     {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+      method: "POST",
+      body: formData
     }
   );
 
@@ -1530,16 +1528,16 @@ async function getXreaViewUrl(imagePath) {
 
 async function downloadXreaPhotoBlob(imagePath) {
   const accessToken = await getCurrentAccessToken();
+  const formData = new FormData();
+
+  formData.append("access_token", accessToken);
+  formData.append("file", imagePath);
 
   const response = await fetch(
-    `${XREA_IMAGE_API_BASE}/download.php?file=${encodeURIComponent(
-      imagePath
-    )}`,
+    `${XREA_IMAGE_API_BASE}/download.php`,
     {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+      method: "POST",
+      body: formData
     }
   );
 
@@ -1561,18 +1559,16 @@ async function deleteXreaPhoto(imagePath) {
   }
 
   const accessToken = await getCurrentAccessToken();
+  const formData = new FormData();
+
+  formData.append("access_token", accessToken);
+  formData.append("file", imagePath);
 
   const response = await fetch(
     `${XREA_IMAGE_API_BASE}/delete.php`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        file: imagePath
-      })
+      body: formData
     }
   );
 
