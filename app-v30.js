@@ -1,4 +1,4 @@
-console.log("fish-memo v30 - XREA PHP photo storage");
+console.log("fish-memo v30.2 - XREA shared SSL photo storage");
 console.log("fish-memo HEIC support v15");
 console.log("fish-memo bouz v11");
 console.log("fish-memo bouz v10");
@@ -22,7 +22,7 @@ const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_bCmnAdCRkpMGhIhC6YyHRg_olf4-bV5";
 
 const XREA_IMAGE_API_BASE =
-  "https://kenichi.s323.xrea.com/fishnote-api";
+  "https://ss1.xrea.com/kenichi.s323.xrea.com/fishnote-api";
 const XREA_IMAGE_PATH_PREFIX = "xrea:";
 
 
